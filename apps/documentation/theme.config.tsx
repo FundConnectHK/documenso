@@ -58,8 +58,8 @@ const themeConfig: DocsThemeConfig = {
     ),
   },
   color: {
-    hue: 100,
-    saturation: 48.47,
+    hue: 0,
+    saturation: 72,
   },
 };
 

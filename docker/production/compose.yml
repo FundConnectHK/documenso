@@ -13,10 +13,10 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - database:/var/lib/postgresql/data
+      - /mnt/HC_Volume_104027077:/var/lib/postgresql/data
 
   documenso:
-    image: documenso/documenso:latest
+    image: fundconnecthk:latest
     depends_on:
       database:
         condition: service_healthy
@@ -66,6 +66,3 @@ services:
       - ${PORT:-3000}:${PORT:-3000}
     volumes:
       - /opt/documenso/cert.p12:/opt/documenso/cert.p12:ro
-
-volumes:
-  database:

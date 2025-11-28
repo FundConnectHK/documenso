@@ -7,7 +7,7 @@ import { Trans } from '@lingui/react/macro';
 import { authClient } from '@documenso/auth/client';
 import { useSession } from '@documenso/lib/client-only/providers/session';
 import { trpc } from '@documenso/trpc/react';
-import { Alert, AlertDescription, AlertTitle } from '@documenso/ui/primitives/alert';
+import { Alert, AlertDescription } from '@documenso/ui/primitives/alert';
 import { Button } from '@documenso/ui/primitives/button';
 import {
   Dialog,
@@ -16,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@documenso/ui/primitives/dialog';
 import { Input } from '@documenso/ui/primitives/input';
 import { Label } from '@documenso/ui/primitives/label';
@@ -67,7 +66,7 @@ export const AccountDeleteDialog = ({ className }: AccountDeleteDialogProps) => 
         className="flex flex-col items-center justify-between gap-4 p-6 md:flex-row"
         variant="neutral"
       >
-        <div>
+        {/* <div>
           <AlertTitle>
             <Trans>Delete Account</Trans>
           </AlertTitle>
@@ -77,15 +76,15 @@ export const AccountDeleteDialog = ({ className }: AccountDeleteDialogProps) => 
               is irreversible and will cancel your subscription, so proceed with caution.
             </Trans>
           </AlertDescription>
-        </div>
+        </div> */}
 
         <div className="flex-shrink-0">
           <Dialog onOpenChange={() => setEnteredEmail('')}>
-            <DialogTrigger asChild>
+            {/* <DialogTrigger asChild>
               <Button variant="destructive">
                 <Trans>Delete Account</Trans>
               </Button>
-            </DialogTrigger>
+            </DialogTrigger> */}
 
             <DialogContent>
               <DialogHeader className="space-y-4">
@@ -122,7 +121,7 @@ export const AccountDeleteDialog = ({ className }: AccountDeleteDialogProps) => 
                   <Label>
                     <Trans>
                       Please type{' '}
-                      <span className="text-muted-foreground font-semibold">{user.email}</span> to
+                      <span className="font-semibold text-muted-foreground">{user.email}</span> to
                       confirm.
                     </Trans>
                   </Label>

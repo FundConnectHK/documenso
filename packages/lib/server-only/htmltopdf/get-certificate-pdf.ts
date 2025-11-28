@@ -1,7 +1,11 @@
 import { DateTime } from 'luxon';
 import type { Browser } from 'playwright';
 
-import { NEXT_PUBLIC_WEBAPP_URL, NEXT_PRIVATE_INTERNAL_WEBAPP_URL, USE_INTERNAL_URL_BROWSERLESS} from '../../constants/app';
+import {
+  NEXT_PRIVATE_INTERNAL_WEBAPP_URL,
+  NEXT_PUBLIC_WEBAPP_URL,
+  USE_INTERNAL_URL_BROWSERLESS,
+} from '../../constants/app';
 import { type SupportedLanguageCodes, isValidLanguageCode } from '../../constants/i18n';
 import { env } from '../../utils/env';
 import { encryptSecondaryData } from '../crypto/encrypt';
@@ -39,20 +43,24 @@ export const getCertificatePdf = async ({ documentId, language }: GetCertificate
   }
 
   const browserContext = await browser.newContext();
-
   const page = await browserContext.newPage();
 
   const lang = isValidLanguageCode(language) ? language : 'en';
+
+  // 同样这里把 baseUrl 收敛成 string
+  const baseUrl: string = USE_INTERNAL_URL_BROWSERLESS
+    ? NEXT_PUBLIC_WEBAPP_URL()
+    : NEXT_PRIVATE_INTERNAL_WEBAPP_URL;
 
   await page.context().addCookies([
     {
       name: 'lang',
       value: lang,
-      url: USE_INTERNAL_URL_BROWSERLESS() ? NEXT_PUBLIC_WEBAPP_URL() : NEXT_PRIVATE_INTERNAL_WEBAPP_URL(),
+      url: baseUrl,
     },
   ]);
 
-  await page.goto(`${USE_INTERNAL_URL_BROWSERLESS() ? NEXT_PUBLIC_WEBAPP_URL() : NEXT_PRIVATE_INTERNAL_WEBAPP_URL()}/__htmltopdf/certificate?d=${encryptedId}`, {
+  await page.goto(`${baseUrl}/__htmltopdf/certificate?d=${encryptedId}`, {
     waitUntil: 'networkidle',
     timeout: 10_000,
   });
@@ -76,7 +84,6 @@ export const getCertificatePdf = async ({ documentId, language }: GetCertificate
   });
 
   await browserContext.close();
-
   void browser.close();
 
   return result;

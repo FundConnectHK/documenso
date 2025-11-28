@@ -29,6 +29,7 @@ export default defineConfig({
   },
   server: {
     port: parseInt(process.env.PORT || '3000', 10),
+    host: true,
     strictPort: true,
   },
   plugins: [

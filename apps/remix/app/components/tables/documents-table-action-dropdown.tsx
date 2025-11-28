@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { DocumentStatus, RecipientRole } from '@prisma/client';
@@ -15,7 +14,6 @@ import {
   MoreHorizontal,
   Pencil,
   Share,
-  Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router';
 
@@ -76,7 +74,7 @@ export const DocumentsTableActionDropdown = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger data-testid="document-table-action-btn">
-        <MoreHorizontal className="text-muted-foreground h-5 w-5" />
+        <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-52" align="start" forceMount>
@@ -153,10 +151,10 @@ export const DocumentsTableActionDropdown = ({
           Void
         </DropdownMenuItem> */}
 
-        <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
+        {/* <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           {canManageDocument ? _(msg`Delete`) : _(msg`Hide`)}
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
 
         <DropdownMenuLabel>
           <Trans>Share</Trans>
