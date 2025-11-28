@@ -1,4 +1,4 @@
-name: documenso-production
+name: fundconnecthkcontract-production
 
 services:
   database:
@@ -15,7 +15,7 @@ services:
     volumes:
       - /mnt/HC_Volume_104027077:/var/lib/postgresql/data
 
-  documenso:
+  fundconnecthkcontract:
     image: fundconnecthk:latest
     depends_on:
       database:
@@ -65,4 +65,4 @@ services:
     ports:
       - ${PORT:-3000}:${PORT:-3000}
     volumes:
-      - /opt/documenso/cert.p12:/opt/documenso/cert.p12:ro
+      - /opt/fundconnecthkcontract/cert.p12:/opt/fundconnecthkcontract/cert.p12:ro

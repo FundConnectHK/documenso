@@ -25,11 +25,8 @@ docker buildx build \
     -f "$SCRIPT_DIR/Dockerfile" \
     --platform=$PLATFORM \
     --progress=plain \
-    -t "documenso/documenso:latest" \
-    -t "documenso/documenso:$GIT_SHA" \
-    -t "documenso/documenso:$APP_VERSION" \
-    -t "ghcr.io/documenso/documenso:latest" \
-    -t "ghcr.io/documenso/documenso:$GIT_SHA" \
-    -t "ghcr.io/documenso/documenso:$APP_VERSION" \
+    -t "fundconnecthk:latest" \
+    -t "fundconnecthk:$GIT_SHA" \
+    -t "fundconnecthk:$APP_VERSION" \
     --push \
     "$MONOREPO_ROOT"
