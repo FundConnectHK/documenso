@@ -6,7 +6,7 @@ export default remixRoutesOptionAdapter((defineRoutes) => {
     ignoredRouteFiles: ['**/.*'], // Ignore dot files (like .DS_Store)
     //appDir: 'app',
     //routeDir: 'routes',
-    //basePath: '/contract', // 使用 react-router.config.ts 中的 basename 配置
+    //basePath: '/',
     //paramPrefixChar: '$',
     //routeRegex: /(([+][\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)))\.(ts|tsx|js|jsx|md|mdx)$$/,
   });

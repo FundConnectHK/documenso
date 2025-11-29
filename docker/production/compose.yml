@@ -1,4 +1,4 @@
-name: fundconnecthkcontract-production
+name: fundconnecthk-contract-production
 
 services:
   database:
@@ -15,7 +15,7 @@ services:
     volumes:
       - /mnt/HC_Volume_104027077:/var/lib/postgresql/data
 
-  fundconnecthkcontract:
+  fundconnecthk-contract:
     image: fundconnecthk:latest
     depends_on:
       database:
@@ -65,4 +65,4 @@ services:
     ports:
       - ${PORT:-3000}:${PORT:-3000}
     volumes:
-      - /opt/fundconnecthkcontract/cert.p12:/opt/fundconnecthkcontract/cert.p12:ro
+      - /opt/fundconnecthk-contract/cert.p12:/opt/fundconnecthk-contract/cert.p12:ro
