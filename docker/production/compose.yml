@@ -15,12 +15,23 @@ services:
     volumes:
       - /mnt/HC_Volume_104027077:/var/lib/postgresql/data
 
+  mailserver:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - '8025:8025' # Web UI: http://服务器IP:8025
+      - '1025:1025' # SMTP 端口
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INVALID_HELO: 1
+
   fundconnecthk-contract:
     image: fundconnecthk:latest
     depends_on:
       database:
         condition: service_healthy
     environment:
+      - NODE_ENV=production
       - PORT=${PORT:-3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?err}
       - NEXT_PRIVATE_ENCRYPTION_KEY=${NEXT_PRIVATE_ENCRYPTION_KEY:?err}
