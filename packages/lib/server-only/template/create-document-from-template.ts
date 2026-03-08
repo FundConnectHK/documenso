@@ -626,9 +626,7 @@ export const createDocumentFromTemplate = async ({
 
       const richTextFieldsByRecipient = new Map<number, number>();
       for (const fieldId of richTextSigningAreaFieldIds) {
-        const recipient = finalRecipients.find((r) =>
-          r.fields.some((f) => f.id === fieldId),
-        );
+        const recipient = finalRecipients.find((r) => r.fields.some((f) => f.id === fieldId));
         if (!recipient) {
           continue;
         }
@@ -654,8 +652,7 @@ export const createDocumentFromTemplate = async ({
           const prefillField = prefillFields?.find((value) => value.id === field.id);
 
           const isRichTextSigningArea =
-            field.type === FieldType.SIGNATURE &&
-            richTextSigningAreaFieldIds?.includes(field.id);
+            field.type === FieldType.SIGNATURE && richTextSigningAreaFieldIds?.includes(field.id);
 
           let fieldMeta = field.fieldMeta;
           if (isRichTextSigningArea) {

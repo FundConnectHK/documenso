@@ -87,10 +87,7 @@ export const EnvelopeEditorFieldsPage = () => {
 
     if (!isMetaSame) {
       const newMeta = fieldMeta as TSignatureFieldMeta | undefined;
-      if (
-        newMeta?.type === 'signature' &&
-        newMeta.richTextSigningArea === true
-      ) {
+      if (newMeta?.type === 'signature' && newMeta.richTextSigningArea === true) {
         editorFields.localFields.forEach((field) => {
           if (
             field.formId !== selectedField.formId &&

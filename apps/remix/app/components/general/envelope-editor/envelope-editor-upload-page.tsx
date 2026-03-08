@@ -5,7 +5,13 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { DocumentStatus } from '@prisma/client';
-import { ChevronDownIcon, ChevronUpIcon, FileWarningIcon, GripVerticalIcon, Loader2 } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  FileWarningIcon,
+  GripVerticalIcon,
+  Loader2,
+} from 'lucide-react';
 import { X } from 'lucide-react';
 import { ErrorCode as DropzoneErrorCode, type FileRejection } from 'react-dropzone';
 import { Link } from 'react-router';
@@ -21,6 +27,7 @@ import { nanoid } from '@documenso/lib/universal/id';
 import { canEnvelopeItemsBeModified } from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
 import type { TCreateEnvelopeItemsPayload } from '@documenso/trpc/server/envelope-router/create-envelope-items.types';
+import { RichTextEditor } from '@documenso/ui/components/rich-text-editor/rich-text-editor';
 import { Button } from '@documenso/ui/primitives/button';
 import {
   Card,
@@ -35,7 +42,6 @@ import {
   CollapsibleTrigger,
 } from '@documenso/ui/primitives/collapsible';
 import { DocumentDropzone } from '@documenso/ui/primitives/document-dropzone';
-import { RichTextEditor } from '@documenso/ui/components/rich-text-editor/rich-text-editor';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { EnvelopeItemDeleteDialog } from '~/components/dialogs/envelope-item-delete-dialog';
@@ -339,7 +345,7 @@ export const EnvelopeEditorUploadPage = () => {
                             }`}
                           >
                             <div
-                              className={`bg-accent/50 flex items-center justify-between rounded-lg p-3 ${
+                              className={`flex items-center justify-between rounded-lg bg-accent/50 p-3 ${
                                 snapshot.isDragging ? '' : ''
                               }`}
                             >
@@ -365,7 +371,7 @@ export const EnvelopeEditorUploadPage = () => {
                                     <p className="text-sm font-medium">{localFile.title}</p>
                                   )}
 
-                                  <div className="text-muted-foreground text-xs">
+                                  <div className="text-xs text-muted-foreground">
                                     {localFile.isUploading ? (
                                       <Trans>Uploading</Trans>
                                     ) : localFile.isError ? (
@@ -377,13 +383,13 @@ export const EnvelopeEditorUploadPage = () => {
                               <div className="flex items-center space-x-2">
                                 {localFile.isUploading && (
                                   <div className="flex h-6 w-10 items-center justify-center">
-                                    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                   </div>
                                 )}
 
                                 {localFile.isError && (
                                   <div className="flex h-6 w-10 items-center justify-center">
-                                    <FileWarningIcon className="text-destructive h-4 w-4" />
+                                    <FileWarningIcon className="h-4 w-4 text-destructive" />
                                   </div>
                                 )}
 
@@ -423,7 +429,7 @@ export const EnvelopeEditorUploadPage = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-muted-foreground hover:text-foreground -mt-1 flex w-full items-center justify-start gap-1 rounded-b-lg px-4 py-2 text-xs"
+                                    className="-mt-1 flex w-full items-center justify-start gap-1 rounded-b-lg px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
                                   >
                                     {expandedRichTextIds.has(localFile.envelopeItemId) ? (
                                       <ChevronUpIcon className="h-4 w-4" />
@@ -434,8 +440,8 @@ export const EnvelopeEditorUploadPage = () => {
                                   </Button>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                  <div className="border-accent/50 mt-2 rounded-b-lg border border-t-0 p-3">
-                                    <p className="text-muted-foreground mb-2 text-xs">
+                                  <div className="mt-2 rounded-b-lg border border-t-0 border-accent/50 p-3">
+                                    <p className="mb-2 text-xs text-muted-foreground">
                                       <Trans>
                                         Uploaded PDF will be used for download. Rich text will be
                                         displayed on the signing page.
@@ -449,7 +455,7 @@ export const EnvelopeEditorUploadPage = () => {
                                       placeholder={t`Enter contract content for signing page...`}
                                       disabled={!canItemsBeModified}
                                     />
-                                    <p className="text-muted-foreground mt-3 text-xs">
+                                    <p className="mt-3 text-xs text-muted-foreground">
                                       <Trans>
                                         In step 2, add a signature field and check &quot;Use as rich
                                         text signing area for this signer&quot; to link it to the

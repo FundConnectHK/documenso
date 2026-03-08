@@ -50,9 +50,12 @@ export const handleEnvelopeItemFileRequest = async ({
       // For viewing (not downloading), redirect directly to OSS for better performance
       // Downloads still need to be proxied to set Content-Disposition header
       if (!isDownload) {
-        c.header('Cache-Control', status === DocumentStatus.COMPLETED 
-          ? 'public, max-age=31536000, immutable' 
-          : 'public, max-age=0, must-revalidate');
+        c.header(
+          'Cache-Control',
+          status === DocumentStatus.COMPLETED
+            ? 'public, max-age=31536000, immutable'
+            : 'public, max-age=0, must-revalidate',
+        );
         c.header('ETag', etag);
         return c.redirect(url, 302);
       }

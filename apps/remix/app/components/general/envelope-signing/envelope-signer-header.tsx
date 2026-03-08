@@ -28,7 +28,7 @@ export const EnvelopeSignerHeader = () => {
     useRequiredEnvelopeSigningContext();
 
   return (
-    <nav className="embed--DocumentWidgetHeader bg-background border-border max-w-screen flex flex-row justify-between border-b px-4 py-3 md:px-6">
+    <nav className="embed--DocumentWidgetHeader max-w-screen flex flex-row justify-between border-b border-border bg-background px-4 py-3 md:px-6">
       {/* Left side - Logo and title */}
       <div className="flex min-w-0 flex-1 items-center space-x-2 md:w-auto md:flex-none">
         <div className="flex-shrink-0">
@@ -48,7 +48,7 @@ export const EnvelopeSignerHeader = () => {
 
         <h1
           title={envelope.title}
-          className="text-foreground min-w-0 truncate text-base font-semibold md:hidden"
+          className="min-w-0 truncate text-base font-semibold text-foreground md:hidden"
         >
           {envelope.title}
         </h1>
@@ -56,7 +56,7 @@ export const EnvelopeSignerHeader = () => {
         <Separator orientation="vertical" className="hidden h-6 md:block" />
 
         <div className="hidden items-center space-x-2 md:flex">
-          <h1 className="text-foreground whitespace-nowrap text-sm font-medium">
+          <h1 className="whitespace-nowrap text-sm font-medium text-foreground">
             {envelope.title}
           </h1>
 
@@ -73,7 +73,7 @@ export const EnvelopeSignerHeader = () => {
 
       {/* Right side - Desktop content */}
       <div className="hidden items-center space-x-2 lg:flex">
-        <p className="text-muted-foreground mr-2 flex-shrink-0 text-sm">
+        <p className="mr-2 flex-shrink-0 text-sm text-muted-foreground">
           <Plural
             one="1 Field Remaining"
             other="# Fields Remaining"

@@ -1,5 +1,3 @@
-import './polyfills/promise-with-resolvers';
-
 import { StrictMode, startTransition, useEffect } from 'react';
 
 import { i18n } from '@lingui/core';
@@ -11,6 +9,8 @@ import { HydratedRouter } from 'react-router/dom';
 
 import { extractPostHogConfig } from '@documenso/lib/constants/feature-flags';
 import { dynamicActivate } from '@documenso/lib/utils/i18n';
+
+import './polyfills/promise-with-resolvers';
 
 function PosthogInit() {
   const postHogConfig = extractPostHogConfig();

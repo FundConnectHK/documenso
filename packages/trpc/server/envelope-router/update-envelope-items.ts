@@ -72,61 +72,63 @@ export const updateEnvelopeItemsRoute = authenticatedProcedure
     }
 
     const updatedEnvelopeItems = await Promise.all(
-      data.map(async ({ envelopeItemId, order, title, richTextContent, richTextSignatureFieldId }) => {
-        const updateData: {
-          order?: number;
-          title?: string;
-          richTextContent?: string | null;
-          richTextSignatureFieldId?: number | null;
-        } = {};
+      data.map(
+        async ({ envelopeItemId, order, title, richTextContent, richTextSignatureFieldId }) => {
+          const updateData: {
+            order?: number;
+            title?: string;
+            richTextContent?: string | null;
+            richTextSignatureFieldId?: number | null;
+          } = {};
 
-        if (order !== undefined) {
-          updateData.order = order;
-        }
-
-        if (title !== undefined) {
-          updateData.title = title;
-        }
-
-        if (richTextContent !== undefined) {
-          updateData.richTextContent = richTextContent || null;
-        }
-
-        if (richTextSignatureFieldId !== undefined) {
-          if (richTextSignatureFieldId !== null) {
-            const field = await prisma.field.findFirst({
-              where: {
-                id: richTextSignatureFieldId,
-                envelopeItemId,
-                envelopeId: envelope.id,
-                type: 'SIGNATURE',
-              },
-            });
-            if (!field) {
-              throw new AppError(AppErrorCode.INVALID_BODY, {
-                message: 'Signature field not found or does not belong to this envelope item',
-              });
-            }
+          if (order !== undefined) {
+            updateData.order = order;
           }
-          updateData.richTextSignatureFieldId = richTextSignatureFieldId;
-        }
 
-        return prisma.envelopeItem.update({
-          where: {
-            envelopeId: envelope.id,
-            id: envelopeItemId,
-          },
-          data: updateData,
-          select: {
-            id: true,
-            order: true,
-            title: true,
-            envelopeId: true,
-            richTextContent: true,
-            richTextSignatureFieldId: true,
-          },
-        });
-      }),
+          if (title !== undefined) {
+            updateData.title = title;
+          }
+
+          if (richTextContent !== undefined) {
+            updateData.richTextContent = richTextContent || null;
+          }
+
+          if (richTextSignatureFieldId !== undefined) {
+            if (richTextSignatureFieldId !== null) {
+              const field = await prisma.field.findFirst({
+                where: {
+                  id: richTextSignatureFieldId,
+                  envelopeItemId,
+                  envelopeId: envelope.id,
+                  type: 'SIGNATURE',
+                },
+              });
+              if (!field) {
+                throw new AppError(AppErrorCode.INVALID_BODY, {
+                  message: 'Signature field not found or does not belong to this envelope item',
+                });
+              }
+            }
+            updateData.richTextSignatureFieldId = richTextSignatureFieldId;
+          }
+
+          return prisma.envelopeItem.update({
+            where: {
+              envelopeId: envelope.id,
+              id: envelopeItemId,
+            },
+            data: updateData,
+            select: {
+              id: true,
+              order: true,
+              title: true,
+              envelopeId: true,
+              richTextContent: true,
+              richTextSignatureFieldId: true,
+            },
+          });
+        },
+      ),
     );
 
     // Todo: Envelope [AUDIT_LOGS]

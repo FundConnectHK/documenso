@@ -11,7 +11,7 @@ export const DocumentSigningDisclosure = ({
   ...props
 }: DocumentSigningDisclosureProps) => {
   return (
-    <p className={cn('text-muted-foreground text-xs', className)} {...props}>
+    <p className={cn('text-xs text-muted-foreground', className)} {...props}>
       繼續使用電子簽名即表示您確認並同意該簽名將用於簽署指定文件，並具有與手寫簽名相同的法律效力。完成電子簽署流程即表示您確認理解並接受這些條件。
       <span className="mt-2 block">
         閱讀完整的{' '}

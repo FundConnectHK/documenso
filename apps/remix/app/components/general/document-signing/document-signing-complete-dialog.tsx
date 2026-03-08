@@ -244,7 +244,7 @@ export const DocumentSigningCompleteDialog = ({
             <Trans>Are you sure?</Trans>
           </DialogTitle>
           <DialogDescription>
-            <div className="text-muted-foreground max-w-[50ch]">
+            <div className="max-w-[50ch] text-muted-foreground">
               {match(recipient.role)
                 .with(RecipientRole.VIEWER, () => (
                   <span className="inline-flex flex-wrap">
@@ -272,8 +272,8 @@ export const DocumentSigningCompleteDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="border-border bg-muted/50 rounded-lg border p-4 text-center">
-          <p className="text-muted-foreground text-sm font-medium">{documentTitle}</p>
+        <div className="rounded-lg border border-border bg-muted/50 p-4 text-center">
+          <p className="text-sm font-medium text-muted-foreground">{documentTitle}</p>
         </div>
 
         {!showTwoFactorForm && (

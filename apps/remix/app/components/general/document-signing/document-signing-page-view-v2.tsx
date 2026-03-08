@@ -24,15 +24,14 @@ import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signat
 import { SignFieldTextDialog } from '~/components/dialogs/sign-field-text-dialog';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
-import { BrandingLogo } from '../branding-logo';
 import { DocumentSigningAttachmentsPopover } from '../document-signing/document-signing-attachments-popover';
 import { EnvelopeItemSelector } from '../envelope-editor/envelope-file-selector';
 import EnvelopeSignerForm from '../envelope-signing/envelope-signer-form';
 import { EnvelopeSignerHeader } from '../envelope-signing/envelope-signer-header';
 import { DocumentSigningMobileWidget } from './document-signing-mobile-widget';
 import { DocumentSigningRejectDialog } from './document-signing-reject-dialog';
-import { RichTextSigningView } from './rich-text-signing-view';
 import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
+import { RichTextSigningView } from './rich-text-signing-view';
 
 const EnvelopeSignerPageRenderer = lazy(
   async () => import('~/components/general/envelope-signing/envelope-signer-page-renderer'),
@@ -56,7 +55,7 @@ export const DocumentSigningPageViewV2 = () => {
     allowDocumentRejection = true,
     onDocumentRejected,
   } = useEmbedSigningContext() || {};
-  
+
   // Always hide powered by branding for recipient pages
   const hidePoweredBy = true;
 
@@ -224,7 +223,8 @@ export const DocumentSigningPageViewV2 = () => {
                           one="1 Field"
                           other="# Fields"
                           value={
-                            remainingFields.filter((field) => field.envelopeItemId === doc.id).length
+                            remainingFields.filter((field) => field.envelopeItemId === doc.id)
+                              .length
                           }
                         />
                       )

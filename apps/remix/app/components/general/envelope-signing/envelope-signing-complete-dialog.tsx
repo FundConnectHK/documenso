@@ -20,8 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@documenso/ui/primitives/dialog';
-import { useToast } from '@documenso/ui/primitives/use-toast';
 import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
+import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
@@ -237,26 +237,26 @@ export const EnvelopeSignerCompleteDialog = () => {
   return (
     <>
       <DocumentSigningCompleteDialog
-      isSubmitting={isPending}
-      directTemplatePayload={directTemplatePayload}
-      onSignatureComplete={
-        isDirectTemplate ? handleDirectTemplateCompleteClick : handleOnCompleteClick
-      }
-      documentTitle={envelope.title}
-      fields={recipientFieldsRemaining}
-      fieldsValidated={handleOnNextFieldClick}
-      recipient={recipient}
-      allowDictateNextSigner={Boolean(
-        nextRecipient && envelope.documentMeta.allowDictateNextSigner,
-      )}
-      defaultNextSigner={
-        nextRecipient ? { name: nextRecipient.name, email: nextRecipient.email } : undefined
-      }
-      buttonSize="sm"
-      position="center"
-      forceCompleteButton={isRichTextSigningMode}
-      onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
-    />
+        isSubmitting={isPending}
+        directTemplatePayload={directTemplatePayload}
+        onSignatureComplete={
+          isDirectTemplate ? handleDirectTemplateCompleteClick : handleOnCompleteClick
+        }
+        documentTitle={envelope.title}
+        fields={recipientFieldsRemaining}
+        fieldsValidated={handleOnNextFieldClick}
+        recipient={recipient}
+        allowDictateNextSigner={Boolean(
+          nextRecipient && envelope.documentMeta.allowDictateNextSigner,
+        )}
+        defaultNextSigner={
+          nextRecipient ? { name: nextRecipient.name, email: nextRecipient.email } : undefined
+        }
+        buttonSize="sm"
+        position="center"
+        forceCompleteButton={isRichTextSigningMode}
+        onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
+      />
 
       <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>
         <DialogContent>

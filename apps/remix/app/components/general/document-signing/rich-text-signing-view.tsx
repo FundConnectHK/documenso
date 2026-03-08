@@ -1,17 +1,10 @@
 import { useState } from 'react';
 
 import { Trans, useLingui } from '@lingui/react/macro';
-import { FieldType, RecipientRole } from '@prisma/client';
+import { RecipientRole } from '@prisma/client';
 import { Loader2, PenLineIcon } from 'lucide-react';
 
 import type { TFieldSignature } from '@documenso/lib/types/field';
-
-type FieldWithSignature = TFieldSignature & {
-  signature?: {
-    signatureImageAsBase64: string | null;
-    typedSignature: string | null;
-  } | null;
-};
 import { SignatureRender } from '@documenso/ui/primitives/signature-pad/signature-render';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
@@ -19,6 +12,13 @@ import { handleSignatureFieldClick } from '~/utils/field-signing/signature-field
 
 import { useRequiredDocumentSigningAuthContext } from './document-signing-auth-provider';
 import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
+
+type FieldWithSignature = TFieldSignature & {
+  signature?: {
+    signatureImageAsBase64: string | null;
+    typedSignature: string | null;
+  } | null;
+};
 
 export type RichTextSigningViewProps = {
   richTextContent: string;
@@ -47,13 +47,14 @@ export const RichTextSigningView = ({
 
   const { envelope } = envelopeData;
 
-  const allSignatureFields = recipient.role === RecipientRole.ASSISTANT
-    ? selectedAssistantRecipientFields.filter(
-        (f) => f.envelopeItemId === envelopeItemId && f.type === 'SIGNATURE',
-      )
-    : recipientFields.filter(
-        (f) => f.envelopeItemId === envelopeItemId && f.type === 'SIGNATURE',
-      );
+  const allSignatureFields =
+    recipient.role === RecipientRole.ASSISTANT
+      ? selectedAssistantRecipientFields.filter(
+          (f) => f.envelopeItemId === envelopeItemId && f.type === 'SIGNATURE',
+        )
+      : recipientFields.filter(
+          (f) => f.envelopeItemId === envelopeItemId && f.type === 'SIGNATURE',
+        );
 
   const signatureFields = (() => {
     const withRichTextSigningArea = allSignatureFields.filter((f) => {
@@ -119,7 +120,7 @@ export const RichTextSigningView = ({
   return (
     <div className="flex w-full max-w-3xl flex-col">
       <div
-        className="text-foreground max-w-none rounded-lg border border-border bg-background p-6 [&_p]:mb-2 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6"
+        className="max-w-none rounded-lg border border-border bg-background p-6 text-foreground [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-6"
         dangerouslySetInnerHTML={{ __html: richTextContent || '<p></p>' }}
       />
 
@@ -129,9 +130,9 @@ export const RichTextSigningView = ({
           return (
             <div
               key={field.id}
-              className="border-border flex min-h-[120px] flex-col rounded-lg border bg-muted/30 p-4"
+              className="flex min-h-[120px] flex-col rounded-lg border border-border bg-muted/30 p-4"
             >
-              <div className="text-muted-foreground mb-2 text-xs">
+              <div className="mb-2 text-xs text-muted-foreground">
                 <Trans>Signature</Trans>
               </div>
               {field.inserted && fieldWithSignature.signature ? (
@@ -148,27 +149,27 @@ export const RichTextSigningView = ({
                       className="h-20 w-full"
                     />
                   ) : null}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleSignClick(fieldWithSignature as TFieldSignature)}
-                disabled={isSigning}
-                className="border-border hover:bg-muted/50 flex h-24 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSigning ? (
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                ) : (
-                  <>
-                    <PenLineIcon className="h-6 w-6" />
-                    <span className="text-xs">
-                      <Trans>Click to sign</Trans>
-                    </span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => handleSignClick(fieldWithSignature as TFieldSignature)}
+                  disabled={isSigning}
+                  className="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSigning ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <>
+                      <PenLineIcon className="h-6 w-6" />
+                      <span className="text-xs">
+                        <Trans>Click to sign</Trans>
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>

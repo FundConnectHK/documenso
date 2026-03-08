@@ -11,7 +11,8 @@ export default function SignatureDisclosure() {
 
         <h2>接受與同意</h2>
         <p>
-          當您使用我們的平台在文件上加上電子簽名時，即表示您同意根據《全球和國家商業電子簽名法》(E-Sign Act) 及其他適用法律進行簽署。此行為表示您同意使用電子方式簽署文件並接收通知。
+          當您使用我們的平台在文件上加上電子簽名時，即表示您同意根據《全球和國家商業電子簽名法》(E-Sign
+          Act) 及其他適用法律進行簽署。此行為表示您同意使用電子方式簽署文件並接收通知。
         </p>
 
         <h2>電子簽名的合法性</h2>
@@ -41,7 +42,8 @@ export default function SignatureDisclosure() {
         <h2>撤回同意</h2>
         <p>
           您有權在完成簽署流程之前的任何時候撤回使用電子簽名的同意。要撤回同意，請聯繫文件發送者。如果無法聯繫到發送者，您可以聯繫{' '}
-          <a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a> 尋求協助。請注意，撤回同意可能會延遲或終止相關交易或服務的完成。
+          <a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a>{' '}
+          尋求協助。請注意，撤回同意可能會延遲或終止相關交易或服務的完成。
         </p>
 
         <h2>更新您的資訊</h2>
@@ -61,7 +63,8 @@ export default function SignatureDisclosure() {
 
         <h2>聯絡資訊</h2>
         <p>
-          如有任何關於本披露、電子簽名或任何相關流程的問題，請聯繫我們：<a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a>
+          如有任何關於本披露、電子簽名或任何相關流程的問題，請聯繫我們：
+          <a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a>
         </p>
       </article>
     </div>

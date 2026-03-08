@@ -42,11 +42,5 @@ export default function RecipientLayout({ matches }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const errorCode = isRouteErrorResponse(error) ? error.status : 500;
 
-  return (
-    <GenericErrorLayout
-      errorCode={errorCode}
-      secondaryButton={null}
-      primaryButton={null}
-    />
-  );
+  return <GenericErrorLayout errorCode={errorCode} secondaryButton={null} primaryButton={null} />;
 }

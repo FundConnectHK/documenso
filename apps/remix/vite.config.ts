@@ -1,12 +1,12 @@
 import { lingui } from '@lingui/vite-plugin';
 import { reactRouter } from '@react-router/dev/vite';
+import legacy from '@vitejs/plugin-legacy';
 import autoprefixer from 'autoprefixer';
 import serverAdapter from 'hono-react-router-adapter/vite';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import tailwindcss from 'tailwindcss';
 import { defineConfig, normalizePath } from 'vite';
-import legacy from '@vitejs/plugin-legacy';
 import macrosPlugin from 'vite-plugin-babel-macros';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -15,9 +15,7 @@ const require = createRequire(import.meta.url);
 
 const pdfjsDistPath = path.dirname(require.resolve('pdfjs-dist/package.json'));
 const cMapsDir = normalizePath(path.join(pdfjsDistPath, 'cmaps'));
-const pdfWorkerPath = normalizePath(
-  path.join(pdfjsDistPath, 'legacy/build/pdf.worker.min.mjs'),
-);
+const pdfWorkerPath = normalizePath(path.join(pdfjsDistPath, 'legacy/build/pdf.worker.min.mjs'));
 
 /**
  * Note: We load the env variables externally so we can have runtime enviroment variables
@@ -38,10 +36,7 @@ export default defineConfig({
   },
   plugins: [
     legacy({
-      targets: [
-        'Android >= 8',
-        'Chrome >= 70',
-      ],
+      targets: ['Android >= 8', 'Chrome >= 70'],
       additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
     }),
     viteStaticCopy({

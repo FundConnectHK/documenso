@@ -73,7 +73,7 @@ export const EditorFieldSignatureForm = ({
         <fieldset className="flex flex-col gap-2">
           <div>
             <EditorGenericFontSizeField formControl={form.control} />
-            <p className="text-muted-foreground mt-0.5 text-xs">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               <Trans>The typed signature font size</Trans>
             </p>
           </div>
@@ -93,7 +93,7 @@ export const EditorFieldSignatureForm = ({
                   <FormLabel className="text-xs font-normal">
                     <Trans>Use as rich text signing area for this signer</Trans>
                   </FormLabel>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-xs text-muted-foreground">
                     <Trans>
                       Each signer can have at most one. When enabled, this field appears as the
                       bottom signature bar in rich text signing mode.

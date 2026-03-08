@@ -130,7 +130,7 @@ export const SignatureRender = ({ className, value }: SignatureRenderProps) => {
       // Only get image data if dimensions are valid
       if (currentWidth > 0 && currentHeight > 0) {
         const defaultImageData = ctx.getImageData(0, 0, currentWidth, currentHeight);
-      $imageData.current = defaultImageData;
+        $imageData.current = defaultImageData;
       }
     };
 
@@ -169,10 +169,10 @@ export const SignatureRender = ({ className, value }: SignatureRenderProps) => {
   useEffect(() => {
     // Ensure canvas has valid dimensions before rendering
     if ($el.current && $el.current.width > 0 && $el.current.height > 0) {
-    if (isBase64Image(value)) {
-      renderImageSignature();
-    } else {
-      renderTypedSignature();
+      if (isBase64Image(value)) {
+        renderImageSignature();
+      } else {
+        renderTypedSignature();
       }
     }
   }, [value]);

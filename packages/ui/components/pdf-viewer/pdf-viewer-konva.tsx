@@ -82,7 +82,11 @@ export const PdfViewerKonva = ({
   const [numPages, setNumPages] = useState(0);
   const [pdfError, setPdfError] = useState(false);
 
-  const previousFileRef = useRef<{ id: string; fileLength: number; file: { data: Uint8Array } } | null>(null);
+  const previousFileRef = useRef<{
+    id: string;
+    fileLength: number;
+    file: { data: Uint8Array };
+  } | null>(null);
 
   const envelopeItemFile = useMemo(() => {
     const currentId = currentEnvelopeItem?.id || '';

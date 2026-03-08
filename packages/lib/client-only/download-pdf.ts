@@ -1,7 +1,6 @@
 import type { EnvelopeItem } from '@prisma/client';
 
 import { getEnvelopeItemPdfUrl } from '../utils/envelope-download';
-import { downloadFile } from './download-file';
 
 type DocumentVersion = 'original' | 'signed';
 
