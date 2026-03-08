@@ -60,3 +60,6 @@ CLAUDE.md
 
 # agents
 .specs
+
+.env
+.env.production
