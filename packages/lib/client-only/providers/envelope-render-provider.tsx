@@ -132,9 +132,8 @@ export const EnvelopeRenderProvider = ({
         token,
       });
 
-      const blob = await fetch(downloadUrl).then(async (res) => await res.blob());
-
-      const file = await blob.arrayBuffer();
+      const response = await fetch(downloadUrl);
+      const file = await response.arrayBuffer();
 
       setFiles((prev) => ({
         ...prev,
@@ -179,14 +178,26 @@ export const EnvelopeRenderProvider = ({
     }
   }, [currentItem, envelopeItems]);
 
-  // Look for any missing pdf files and load them.
+  // Load PDF for the current item.
+  // In editor mode (token undefined): always load PDF so user can place fields.
+  // In signing mode (token defined): skip PDF for rich text items (displayed as rich text instead).
   useEffect(() => {
-    const missingFiles = envelope.envelopeItems.filter((item) => !files[item.id]);
-
-    for (const item of missingFiles) {
-      void loadEnvelopeItemPdfFile(item);
+    if (!currentItem) {
+      return;
     }
-  }, [envelope.envelopeItems]);
+
+    const isSigningMode = token !== undefined;
+    if (isSigningMode) {
+      const hasAnyRichText = envelope.envelopeItems.some((item) => item.richTextContent);
+      if (hasAnyRichText && currentItem.richTextContent) {
+        return;
+      }
+    }
+
+    if (!files[currentItem.id] || files[currentItem.id].status === 'error') {
+      void loadEnvelopeItemPdfFile(currentItem);
+    }
+  }, [currentItem, files, envelope.envelopeItems, token]);
 
   const recipientIds = useMemo(
     () => recipients.map((recipient) => recipient.id).sort(),

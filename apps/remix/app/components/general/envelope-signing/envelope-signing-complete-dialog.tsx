@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
-import { useLingui } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { FieldType } from '@prisma/client';
 import { useNavigate, useRevalidator, useSearchParams } from 'react-router';
 
@@ -11,7 +11,17 @@ import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
+import { Button } from '@documenso/ui/primitives/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@documenso/ui/primitives/dialog';
 import { useToast } from '@documenso/ui/primitives/use-toast';
+import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
 
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
@@ -27,6 +37,7 @@ export const EnvelopeSignerCompleteDialog = () => {
   const { revalidate } = useRevalidator();
 
   const [searchParams] = useSearchParams();
+  const [showIncompleteFieldsModal, setShowIncompleteFieldsModal] = useState(false);
 
   const {
     isDirectTemplate,
@@ -109,7 +120,10 @@ export const EnvelopeSignerCompleteDialog = () => {
     } catch (err) {
       const error = AppError.parseError(err);
 
-      if (error.code !== AppErrorCode.TWO_FACTOR_AUTH_FAILED) {
+      if (
+        error.code !== AppErrorCode.UNSIGNED_FIELDS &&
+        error.code !== AppErrorCode.TWO_FACTOR_AUTH_FAILED
+      ) {
         toast({
           title: t`Something went wrong`,
           description: t`We were unable to submit this document at this time. Please try again later.`,
@@ -209,8 +223,20 @@ export const EnvelopeSignerCompleteDialog = () => {
     };
   }, [email, fullName, isDirectTemplate]);
 
+  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
+
+  const incompleteFieldLabels = useMemo(
+    () =>
+      recipientFieldsRemaining.map((field) => {
+        const typeLabel = t(FRIENDLY_FIELD_TYPE[field.type]);
+        return field.customText ? `${typeLabel} (${field.customText})` : typeLabel;
+      }),
+    [recipientFieldsRemaining, t],
+  );
+
   return (
-    <DocumentSigningCompleteDialog
+    <>
+      <DocumentSigningCompleteDialog
       isSubmitting={isPending}
       directTemplatePayload={directTemplatePayload}
       onSignatureComplete={
@@ -228,6 +254,39 @@ export const EnvelopeSignerCompleteDialog = () => {
       }
       buttonSize="sm"
       position="center"
+      forceCompleteButton={isRichTextSigningMode}
+      onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
     />
+
+      <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>有未完成的必填欄位</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <div className="space-y-2">
+                <p>
+                  <Trans>以下欄位尚未填寫：</Trans>
+                </p>
+                <ul className="list-inside list-disc text-sm">
+                  {incompleteFieldLabels.map((label, i) => (
+                    <li key={i}>{label}</li>
+                  ))}
+                </ul>
+                <p className="pt-2 font-medium">
+                  <Trans>請聯繫管理員填入</Trans>
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowIncompleteFieldsModal(false)}>
+              <Trans>確定</Trans>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

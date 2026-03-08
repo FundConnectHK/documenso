@@ -14,6 +14,7 @@ export enum AppErrorCode {
   'NOT_SETUP' = 'NOT_SETUP',
   'UNAUTHORIZED' = 'UNAUTHORIZED',
   'UNKNOWN_ERROR' = 'UNKNOWN_ERROR',
+  'UNSIGNED_FIELDS' = 'UNSIGNED_FIELDS',
   'RETRY_EXCEPTION' = 'RETRY_EXCEPTION',
   'SCHEMA_FAILED' = 'SCHEMA_FAILED',
   'TOO_MANY_REQUESTS' = 'TOO_MANY_REQUESTS',
@@ -32,6 +33,7 @@ export const genericErrorCodeToTrpcErrorCodeMap: Record<string, { code: string; 
     [AppErrorCode.UNKNOWN_ERROR]: { code: 'INTERNAL_SERVER_ERROR', status: 500 },
     [AppErrorCode.RETRY_EXCEPTION]: { code: 'INTERNAL_SERVER_ERROR', status: 500 },
     [AppErrorCode.SCHEMA_FAILED]: { code: 'INTERNAL_SERVER_ERROR', status: 500 },
+    [AppErrorCode.UNSIGNED_FIELDS]: { code: 'BAD_REQUEST', status: 400 },
     [AppErrorCode.TOO_MANY_REQUESTS]: { code: 'TOO_MANY_REQUESTS', status: 429 },
     [AppErrorCode.TWO_FACTOR_AUTH_FAILED]: { code: 'UNAUTHORIZED', status: 401 },
   };

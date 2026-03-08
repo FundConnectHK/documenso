@@ -17,11 +17,11 @@ export type LoadedPDFDocument = PDFDocumentProxy;
 
 /**
  * This imports the worker from the `pdfjs-dist` package.
+ * Use the static worker file that was copied during build.
  */
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `${NEXT_PUBLIC_WEBAPP_URL()}/static/pdf.worker.min.mjs`;
+}
 
 const pdfViewerOptions = {
   cMapUrl: `${NEXT_PUBLIC_WEBAPP_URL()}/static/cmaps/`,
@@ -82,16 +82,40 @@ export const PdfViewerKonva = ({
   const [numPages, setNumPages] = useState(0);
   const [pdfError, setPdfError] = useState(false);
 
+  const previousFileRef = useRef<{ id: string; fileLength: number; file: { data: Uint8Array } } | null>(null);
+
   const envelopeItemFile = useMemo(() => {
-    const data = getPdfBuffer(currentEnvelopeItem?.id || '');
+    const currentId = currentEnvelopeItem?.id || '';
+    const data = getPdfBuffer(currentId);
 
     if (!data || data.status !== 'loaded') {
+      previousFileRef.current = null;
       return null;
     }
 
-    return {
+    // Check if the file data has actually changed by comparing ID and file length
+    // This is a lightweight check that should be sufficient for most cases
+    if (
+      previousFileRef.current &&
+      previousFileRef.current.id === currentId &&
+      previousFileRef.current.fileLength === data.file.length
+    ) {
+      // Return the cached file object to maintain reference equality
+      return previousFileRef.current.file;
+    }
+
+    // Create new file object only when data actually changes
+    const file = {
       data: new Uint8Array(data.file),
     };
+
+    previousFileRef.current = {
+      id: currentId,
+      fileLength: data.file.length,
+      file,
+    };
+
+    return file;
   }, [currentEnvelopeItem?.id, getPdfBuffer]);
 
   const onDocumentLoaded = useCallback(

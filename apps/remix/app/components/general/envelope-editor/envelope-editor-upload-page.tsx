@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { DocumentStatus } from '@prisma/client';
-import { FileWarningIcon, GripVerticalIcon, Loader2 } from 'lucide-react';
+import { ChevronDownIcon, ChevronUpIcon, FileWarningIcon, GripVerticalIcon, Loader2 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { ErrorCode as DropzoneErrorCode, type FileRejection } from 'react-dropzone';
 import { Link } from 'react-router';
@@ -29,7 +29,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@documenso/ui/primitives/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@documenso/ui/primitives/collapsible';
 import { DocumentDropzone } from '@documenso/ui/primitives/document-dropzone';
+import { RichTextEditor } from '@documenso/ui/components/rich-text-editor/rich-text-editor';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { EnvelopeItemDeleteDialog } from '~/components/dialogs/envelope-item-delete-dialog';
@@ -41,6 +47,7 @@ type LocalFile = {
   id: string;
   title: string;
   envelopeItemId: string | null;
+  richTextContent: string | null;
   isUploading: boolean;
   isError: boolean;
 };
@@ -60,17 +67,32 @@ export const EnvelopeEditorUploadPage = () => {
         id: item.id,
         title: item.title,
         envelopeItemId: item.id,
+        richTextContent: item.richTextContent ?? null,
         isUploading: false,
         isError: false,
       })),
   );
 
+  const [expandedRichTextIds, setExpandedRichTextIds] = useState<Set<string>>(() => {
+    const first = envelope.envelopeItems.sort((a, b) => a.order - b.order)[0];
+    return first ? new Set([first.id]) : new Set();
+  });
+
+  useEffect(() => {
+    const firstWithId = localFiles.find((f) => f.envelopeItemId);
+    if (firstWithId && !expandedRichTextIds.size) {
+      setExpandedRichTextIds(new Set([firstWithId.envelopeItemId!]));
+    }
+  }, [localFiles]);
+
   const { mutateAsync: createEnvelopeItems, isPending: isCreatingEnvelopeItems } =
     trpc.envelope.item.createMany.useMutation({
       onSuccess: ({ data }) => {
-        const createdEnvelopes = data.filter(
-          (item) => !envelope.envelopeItems.find((envelopeItem) => envelopeItem.id === item.id),
-        );
+        const createdEnvelopes = data
+          .filter(
+            (item) => !envelope.envelopeItems.find((envelopeItem) => envelopeItem.id === item.id),
+          )
+          .map((item) => ({ ...item, richTextContent: null as string | null }));
 
         setLocalEnvelope({
           envelopeItems: [...envelope.envelopeItems, ...createdEnvelopes],
@@ -107,6 +129,7 @@ export const EnvelopeEditorUploadPage = () => {
       id: nanoid(),
       envelopeItemId: null,
       title: file.name,
+      richTextContent: null,
       file,
       isUploading: true,
       isError: false,
@@ -152,6 +175,7 @@ export const EnvelopeEditorUploadPage = () => {
           id: item.id,
           envelopeItemId: item.id,
           title: item.title,
+          richTextContent: null,
           isUploading: false,
           isError: false,
         })),
@@ -203,6 +227,7 @@ export const EnvelopeEditorUploadPage = () => {
           envelopeItemId: item.envelopeItemId || '',
           order: index + 1,
           title: item.title,
+          richTextContent: item.richTextContent ?? undefined,
         })),
     });
   }, 1000);
@@ -210,6 +235,17 @@ export const EnvelopeEditorUploadPage = () => {
   const onEnvelopeItemTitleChange = (envelopeItemId: string, title: string) => {
     const newLocalFilesValue = localFiles.map((uploadingFile) =>
       uploadingFile.envelopeItemId === envelopeItemId ? { ...uploadingFile, title } : uploadingFile,
+    );
+
+    setLocalFiles(newLocalFilesValue);
+    debouncedUpdateEnvelopeItems(newLocalFilesValue);
+  };
+
+  const onRichTextContentChange = (envelopeItemId: string, richTextContent: string) => {
+    const newLocalFilesValue = localFiles.map((uploadingFile) =>
+      uploadingFile.envelopeItemId === envelopeItemId
+        ? { ...uploadingFile, richTextContent: richTextContent || null }
+        : uploadingFile,
     );
 
     setLocalFiles(newLocalFilesValue);
@@ -298,70 +334,132 @@ export const EnvelopeEditorUploadPage = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             style={provided.draggableProps.style}
-                            className={`bg-accent/50 flex items-center justify-between rounded-lg p-3 transition-shadow ${
+                            className={`space-y-0 transition-shadow ${
                               snapshot.isDragging ? 'shadow-md' : ''
                             }`}
                           >
-                            <div className="flex items-center space-x-3">
-                              <div
-                                {...provided.dragHandleProps}
-                                className="cursor-grab active:cursor-grabbing"
-                              >
-                                <GripVerticalIcon className="h-5 w-5 flex-shrink-0 opacity-40" />
-                              </div>
+                            <div
+                              className={`bg-accent/50 flex items-center justify-between rounded-lg p-3 ${
+                                snapshot.isDragging ? '' : ''
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className="cursor-grab active:cursor-grabbing"
+                                >
+                                  <GripVerticalIcon className="h-5 w-5 flex-shrink-0 opacity-40" />
+                                </div>
 
-                              <div>
-                                {localFile.envelopeItemId !== null ? (
-                                  <EnvelopeItemTitleInput
-                                    disabled={envelope.status !== DocumentStatus.DRAFT}
-                                    value={localFile.title}
-                                    placeholder={t`Document Title`}
-                                    onChange={(title) => {
-                                      onEnvelopeItemTitleChange(localFile.envelopeItemId!, title);
-                                    }}
-                                  />
-                                ) : (
-                                  <p className="text-sm font-medium">{localFile.title}</p>
+                                <div>
+                                  {localFile.envelopeItemId !== null ? (
+                                    <EnvelopeItemTitleInput
+                                      disabled={envelope.status !== DocumentStatus.DRAFT}
+                                      value={localFile.title}
+                                      placeholder={t`Document Title`}
+                                      onChange={(title) => {
+                                        onEnvelopeItemTitleChange(localFile.envelopeItemId!, title);
+                                      }}
+                                    />
+                                  ) : (
+                                    <p className="text-sm font-medium">{localFile.title}</p>
+                                  )}
+
+                                  <div className="text-muted-foreground text-xs">
+                                    {localFile.isUploading ? (
+                                      <Trans>Uploading</Trans>
+                                    ) : localFile.isError ? (
+                                      <Trans>Something went wrong while uploading this file</Trans>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {localFile.isUploading && (
+                                  <div className="flex h-6 w-10 items-center justify-center">
+                                    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                                  </div>
                                 )}
 
-                                <div className="text-muted-foreground text-xs">
-                                  {localFile.isUploading ? (
-                                    <Trans>Uploading</Trans>
-                                  ) : localFile.isError ? (
-                                    <Trans>Something went wrong while uploading this file</Trans>
-                                  ) : // <div className="text-xs text-gray-500">2.4 MB • 3 pages</div>
-                                  null}
-                                </div>
+                                {localFile.isError && (
+                                  <div className="flex h-6 w-10 items-center justify-center">
+                                    <FileWarningIcon className="text-destructive h-4 w-4" />
+                                  </div>
+                                )}
+
+                                {!localFile.isUploading && localFile.envelopeItemId && (
+                                  <EnvelopeItemDeleteDialog
+                                    canItemBeDeleted={canItemsBeModified}
+                                    envelopeId={envelope.id}
+                                    envelopeItemId={localFile.envelopeItemId}
+                                    envelopeItemTitle={localFile.title}
+                                    onDelete={onFileDelete}
+                                    trigger={
+                                      <Button variant="ghost" size="sm">
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    }
+                                  />
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              {localFile.isUploading && (
-                                <div className="flex h-6 w-10 items-center justify-center">
-                                  <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
-                                </div>
-                              )}
 
-                              {localFile.isError && (
-                                <div className="flex h-6 w-10 items-center justify-center">
-                                  <FileWarningIcon className="text-destructive h-4 w-4" />
-                                </div>
-                              )}
-
-                              {!localFile.isUploading && localFile.envelopeItemId && (
-                                <EnvelopeItemDeleteDialog
-                                  canItemBeDeleted={canItemsBeModified}
-                                  envelopeId={envelope.id}
-                                  envelopeItemId={localFile.envelopeItemId}
-                                  envelopeItemTitle={localFile.title}
-                                  onDelete={onFileDelete}
-                                  trigger={
-                                    <Button variant="ghost" size="sm">
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  }
-                                />
-                              )}
-                            </div>
+                            {!localFile.isUploading && localFile.envelopeItemId && (
+                              <Collapsible
+                                open={expandedRichTextIds.has(localFile.envelopeItemId)}
+                                onOpenChange={(open) => {
+                                  setExpandedRichTextIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (open) {
+                                      next.add(localFile.envelopeItemId!);
+                                    } else {
+                                      next.delete(localFile.envelopeItemId!);
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <CollapsibleTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-foreground -mt-1 flex w-full items-center justify-start gap-1 rounded-b-lg px-4 py-2 text-xs"
+                                  >
+                                    {expandedRichTextIds.has(localFile.envelopeItemId) ? (
+                                      <ChevronUpIcon className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDownIcon className="h-4 w-4" />
+                                    )}
+                                    <Trans>Edit rich text for signing page</Trans>
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="border-accent/50 mt-2 rounded-b-lg border border-t-0 p-3">
+                                    <p className="text-muted-foreground mb-2 text-xs">
+                                      <Trans>
+                                        Uploaded PDF will be used for download. Rich text will be
+                                        displayed on the signing page.
+                                      </Trans>
+                                    </p>
+                                    <RichTextEditor
+                                      value={localFile.richTextContent ?? ''}
+                                      onChange={(html) =>
+                                        onRichTextContentChange(localFile.envelopeItemId!, html)
+                                      }
+                                      placeholder={t`Enter contract content for signing page...`}
+                                      disabled={!canItemsBeModified}
+                                    />
+                                    <p className="text-muted-foreground mt-3 text-xs">
+                                      <Trans>
+                                        In step 2, add a signature field and check &quot;Use as rich
+                                        text signing area for this signer&quot; to link it to the
+                                        bottom signature bar.
+                                      </Trans>
+                                    </p>
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            )}
                           </div>
                         )}
                       </Draggable>

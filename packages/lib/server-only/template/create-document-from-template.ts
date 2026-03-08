@@ -3,6 +3,7 @@ import {
   DocumentSource,
   EnvelopeType,
   type Field,
+  FieldType,
   FolderType,
   type Recipient,
   RecipientRole,
@@ -35,6 +36,7 @@ import {
   ZDropdownFieldMeta,
   ZFieldMetaSchema,
   ZRadioFieldMeta,
+  ZSignatureFieldMeta,
 } from '../../types/field-meta';
 import {
   ZWebhookDocumentSchema,
@@ -79,6 +81,12 @@ export type CreateDocumentFromTemplateOptions = {
   }[];
   folderId?: string;
   prefillFields?: TFieldMetaPrefillFieldsSchema[];
+
+  /**
+   * Template field IDs (from the template) to mark as rich text signing area.
+   * Each must be a SIGNATURE type field. Each recipient can have at most one.
+   */
+  richTextSigningAreaFieldIds?: number[];
 
   customDocumentData?: {
     documentDataId: string;
@@ -302,6 +310,7 @@ export const createDocumentFromTemplate = async ({
   requestMetadata,
   folderId,
   prefillFields,
+  richTextSigningAreaFieldIds,
   attachments,
 }: CreateDocumentFromTemplateOptions) => {
   const { envelopeWhereInput } = await getEnvelopeWhereInput({
@@ -458,6 +467,8 @@ export const createDocumentFromTemplate = async ({
         title: titleToUse.endsWith('.pdf') ? titleToUse.slice(0, -4) : titleToUse,
         documentDataId: newDocumentData.id,
         order: item.order !== undefined ? item.order : i + 1,
+        richTextContent: item.richTextContent,
+        richTextSignatureFieldId: null,
       };
     }),
   );
@@ -596,6 +607,41 @@ export const createDocumentFromTemplate = async ({
       }
     }
 
+    if (richTextSigningAreaFieldIds?.length) {
+      const allTemplateFields = finalRecipients.flatMap((r) => r.fields);
+
+      for (const fieldId of richTextSigningAreaFieldIds) {
+        const templateField = allTemplateFields.find((f) => f.id === fieldId);
+        if (!templateField) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Field with ID ${fieldId} does not exist in the template`,
+          });
+        }
+        if (templateField.type !== FieldType.SIGNATURE) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Field ${fieldId} must be a SIGNATURE type to be used as rich text signing area`,
+          });
+        }
+      }
+
+      const richTextFieldsByRecipient = new Map<number, number>();
+      for (const fieldId of richTextSigningAreaFieldIds) {
+        const recipient = finalRecipients.find((r) =>
+          r.fields.some((f) => f.id === fieldId),
+        );
+        if (!recipient) {
+          continue;
+        }
+        const templateRecipientId = recipient.templateRecipientId;
+        if (richTextFieldsByRecipient.has(templateRecipientId)) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Each recipient can have at most one rich text signing area field`,
+          });
+        }
+        richTextFieldsByRecipient.set(templateRecipientId, fieldId);
+      }
+    }
+
     Object.values(finalRecipients).forEach(({ token, fields }) => {
       const recipient = envelope.recipients.find((recipient) => recipient.token === token);
 
@@ -606,6 +652,23 @@ export const createDocumentFromTemplate = async ({
       fieldsToCreate = fieldsToCreate.concat(
         fields.map((field) => {
           const prefillField = prefillFields?.find((value) => value.id === field.id);
+
+          const isRichTextSigningArea =
+            field.type === FieldType.SIGNATURE &&
+            richTextSigningAreaFieldIds?.includes(field.id);
+
+          let fieldMeta = field.fieldMeta;
+          if (isRichTextSigningArea) {
+            const baseMeta =
+              typeof field.fieldMeta === 'object' && field.fieldMeta !== null
+                ? (field.fieldMeta as Record<string, unknown>)
+                : {};
+            fieldMeta = ZSignatureFieldMeta.parse({
+              ...baseMeta,
+              type: 'signature',
+              richTextSigningArea: true,
+            }) as typeof field.fieldMeta;
+          }
 
           const payload = {
             envelopeItemId: oldEnvelopeItemToNewEnvelopeItemIdMap[field.envelopeItemId],
@@ -619,7 +682,7 @@ export const createDocumentFromTemplate = async ({
             height: field.height,
             customText: '',
             inserted: false,
-            fieldMeta: field.fieldMeta,
+            fieldMeta,
           };
 
           if (prefillField) {

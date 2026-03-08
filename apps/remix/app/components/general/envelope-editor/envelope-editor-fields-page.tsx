@@ -85,14 +85,31 @@ export const EnvelopeEditorFieldsPage = () => {
 
     const isMetaSame = isDeepEqual(selectedField.fieldMeta, fieldMeta);
 
-    // Todo: Envelopes - Clean up console logs.
     if (!isMetaSame) {
-      console.log('TRIGGER UPDATE');
+      const newMeta = fieldMeta as TSignatureFieldMeta | undefined;
+      if (
+        newMeta?.type === 'signature' &&
+        newMeta.richTextSigningArea === true
+      ) {
+        editorFields.localFields.forEach((field) => {
+          if (
+            field.formId !== selectedField.formId &&
+            field.recipientId === selectedField.recipientId &&
+            field.type === FieldType.SIGNATURE &&
+            (field.fieldMeta as TSignatureFieldMeta)?.richTextSigningArea
+          ) {
+            editorFields.updateFieldByFormId(field.formId, {
+              fieldMeta: {
+                ...(field.fieldMeta as TSignatureFieldMeta),
+                richTextSigningArea: false,
+              },
+            });
+          }
+        });
+      }
       editorFields.updateFieldByFormId(selectedField.formId, {
         fieldMeta,
       });
-    } else {
-      console.log('DATA IS SAME, NO UPDATE');
     }
   };
 
@@ -247,12 +264,22 @@ export const EnvelopeEditorFieldsPage = () => {
                   </h3>
 
                   {match(selectedField.type)
-                    .with(FieldType.SIGNATURE, () => (
-                      <EditorFieldSignatureForm
-                        value={selectedField?.fieldMeta as TSignatureFieldMeta | undefined}
-                        onValueChange={(value) => updateSelectedFieldMeta(value)}
-                      />
-                    ))
+                    .with(FieldType.SIGNATURE, () => {
+                      const hasOtherWithRichTextSigningArea = editorFields.localFields.some(
+                        (f) =>
+                          f.formId !== selectedField.formId &&
+                          f.recipientId === selectedField.recipientId &&
+                          f.type === FieldType.SIGNATURE &&
+                          (f.fieldMeta as TSignatureFieldMeta)?.richTextSigningArea === true,
+                      );
+                      return (
+                        <EditorFieldSignatureForm
+                          value={selectedField?.fieldMeta as TSignatureFieldMeta | undefined}
+                          onValueChange={(value) => updateSelectedFieldMeta(value)}
+                          richTextSigningAreaDisabled={hasOtherWithRichTextSigningArea}
+                        />
+                      );
+                    })
                     .with(FieldType.CHECKBOX, () => (
                       <EditorFieldCheckboxForm
                         value={selectedField?.fieldMeta as TCheckboxFieldMeta | undefined}

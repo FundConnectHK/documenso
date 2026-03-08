@@ -77,6 +77,8 @@ export const ZEnvelopeForSigningResponse = z.object({
       id: true,
       title: true,
       order: true,
+      richTextContent: true,
+      richTextSignatureFieldId: true,
     }).array(),
 
     team: TeamSchema.pick({

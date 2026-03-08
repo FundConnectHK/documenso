@@ -1,165 +1,69 @@
-import { Trans } from '@lingui/react/macro';
-import { Link } from 'react-router';
-
-import { SUPPORT_EMAIL } from '@documenso/lib/constants/app';
-import { Button } from '@documenso/ui/primitives/button';
-
 export default function SignatureDisclosure() {
   return (
     <div>
       <article className="prose dark:prose-invert">
-        <h1>
-          <Trans>Electronic Signature Disclosure</Trans>
-        </h1>
+        <h1>電子簽名披露</h1>
 
-        <h2>
-          <Trans>Welcome</Trans>
-        </h2>
+        <h2>歡迎</h2>
         <p>
-          <Trans>
-            Thank you for using Documenso to perform your electronic document signing. The purpose
-            of this disclosure is to inform you about the process, legality, and your rights
-            regarding the use of electronic signatures on our platform. By opting to use an
-            electronic signature, you are agreeing to the terms and conditions outlined below.
-          </Trans>
+          感謝您使用我們的電子文件簽署服務。本披露旨在告知您有關我們平台上使用電子簽名的流程、合法性及您的權利。選擇使用電子簽名即表示您同意以下條款和條件。
         </p>
 
-        <h2>
-          <Trans>Acceptance and Consent</Trans>
-        </h2>
+        <h2>接受與同意</h2>
         <p>
-          <Trans>
-            When you use our platform to affix your electronic signature to documents, you are
-            consenting to do so under the Electronic Signatures in Global and National Commerce Act
-            (E-Sign Act) and other applicable laws. This action indicates your agreement to use
-            electronic means to sign documents and receive notifications.
-          </Trans>
+          當您使用我們的平台在文件上加上電子簽名時，即表示您同意根據《全球和國家商業電子簽名法》(E-Sign Act) 及其他適用法律進行簽署。此行為表示您同意使用電子方式簽署文件並接收通知。
         </p>
 
-        <h2>
-          <Trans>Legality of Electronic Signatures</Trans>
-        </h2>
+        <h2>電子簽名的合法性</h2>
         <p>
-          <Trans>
-            An electronic signature provided by you on our platform, achieved through clicking
-            through to a document and entering your name, or any other electronic signing method we
-            provide, is legally binding. It carries the same weight and enforceability as a manual
-            signature written with ink on paper.
-          </Trans>
+          您在我們平台上提供的電子簽名，無論是通過點擊文件並輸入您的姓名，還是我們提供的任何其他電子簽名方法，均具有法律約束力。它與紙上手寫簽名具有同等的法律效力和執行力。
         </p>
 
-        <h2>
-          <Trans>System Requirements</Trans>
-        </h2>
-        <p>
-          <Trans>To use our electronic signature service, you must have access to:</Trans>
-        </p>
+        <h2>系統要求</h2>
+        <p>要使用我們的電子簽名服務，您必須具備以下條件：</p>
         <ul>
-          <li>
-            <Trans>A stable internet connection</Trans>
-          </li>
-          <li>
-            <Trans>An email account</Trans>
-          </li>
-          <li>
-            <Trans>A device capable of accessing, opening, and reading documents</Trans>
-          </li>
-          <li>
-            <Trans>A means to print or download documents for your records</Trans>
-          </li>
+          <li>穩定的互聯網連接</li>
+          <li>電子郵件帳戶</li>
+          <li>能夠訪問、打開和閱讀文件的設備</li>
+          <li>可以列印或下載文件以供記錄的方式</li>
         </ul>
 
-        <h2>
-          <Trans>Electronic Delivery of Documents</Trans>
-        </h2>
+        <h2>文件的電子傳遞</h2>
         <p>
-          <Trans>
-            All documents related to the electronic signing process will be provided to you
-            electronically through our platform or via email. It is your responsibility to ensure
-            that your email address is current and that you can receive and open our emails.
-          </Trans>
+          所有與電子簽名流程相關的文件將通過我們的平台或電子郵件以電子方式提供給您。您有責任確保您的電子郵件地址是最新的，並且您能夠接收和打開我們的電子郵件。
         </p>
 
-        <h2>
-          <Trans>Consent to Electronic Transactions</Trans>
-        </h2>
+        <h2>同意電子交易</h2>
         <p>
-          <Trans>
-            By using the electronic signature feature, you are consenting to conduct transactions
-            and receive disclosures electronically. You acknowledge that your electronic signature
-            on documents is binding and that you accept the terms outlined in the documents you are
-            signing.
-          </Trans>
+          使用電子簽名功能即表示您同意以電子方式進行交易並接收披露資訊。您確認您在文件上的電子簽名具有約束力，並且您接受正在簽署的文件中概述的條款。
         </p>
 
-        <h2>
-          <Trans>Withdrawing Consent</Trans>
-        </h2>
+        <h2>撤回同意</h2>
         <p>
-          <Trans>
-            You have the right to withdraw your consent to use electronic signatures at any time
-            before completing the signing process. To withdraw your consent, please contact the
-            sender of the document. In failing to contact the sender you may reach out to{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> for assistance. Be aware that
-            withdrawing consent may delay or halt the completion of the related transaction or
-            service.
-          </Trans>
+          您有權在完成簽署流程之前的任何時候撤回使用電子簽名的同意。要撤回同意，請聯繫文件發送者。如果無法聯繫到發送者，您可以聯繫{' '}
+          <a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a> 尋求協助。請注意，撤回同意可能會延遲或終止相關交易或服務的完成。
         </p>
 
-        <h2>
-          <Trans>Updating Your Information</Trans>
-        </h2>
+        <h2>更新您的資訊</h2>
         <p>
-          <Trans>
-            It is crucial to keep your contact information, especially your email address, up to
-            date with us. Please notify us immediately of any changes to ensure that you continue to
-            receive all necessary communications.
-          </Trans>
+          保持您的聯繫資訊（特別是電子郵件地址）最新非常重要。如有任何變更，請立即通知我們，以確保您能夠繼續接收所有必要的通訊。
         </p>
 
-        <h2>
-          <Trans>Retention of Documents</Trans>
-        </h2>
+        <h2>文件保留</h2>
         <p>
-          <Trans>
-            After signing a document electronically, you will be provided the opportunity to view,
-            download, and print the document for your records. It is highly recommended that you
-            retain a copy of all electronically signed documents for your personal records. We will
-            also retain a copy of the signed document for our records however we may not be able to
-            provide you with a copy of the signed document after a certain period of time.
-          </Trans>
+          在以電子方式簽署文件後，您將有機會查看、下載和列印該文件以供記錄。強烈建議您保留所有電子簽署文件的副本作為個人記錄。我們也會保留已簽署文件的副本，但在一定時間後可能無法為您提供已簽署文件的副本。
         </p>
 
-        <h2>
-          <Trans>Acknowledgment</Trans>
-        </h2>
+        <h2>確認</h2>
         <p>
-          <Trans>
-            By proceeding to use the electronic signature service provided by Documenso, you affirm
-            that you have read and understood this disclosure. You agree to all terms and conditions
-            related to the use of electronic signatures and electronic transactions as outlined
-            herein.
-          </Trans>
+          繼續使用電子簽名服務即表示您確認已閱讀並理解本披露。您同意本文所述與使用電子簽名和電子交易相關的所有條款和條件。
         </p>
 
-        <h2>
-          <Trans>Contact Information</Trans>
-        </h2>
+        <h2>聯絡資訊</h2>
         <p>
-          <Trans>
-            For any questions regarding this disclosure, electronic signatures, or any related
-            process, please contact us at: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
-          </Trans>
+          如有任何關於本披露、電子簽名或任何相關流程的問題，請聯繫我們：<a href="mailto:cs@fundconnecthk.com">cs@fundconnecthk.com</a>
         </p>
       </article>
-
-      <div className="mt-8">
-        <Button asChild>
-          <Link to="/">
-            <Trans>Back home</Trans>
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 }

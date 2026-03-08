@@ -442,6 +442,11 @@ model EnvelopeItem {
 
   order Int
 
+  richTextContent String?
+
+  /// When set, the rich text signing bar signs this specific field (exactly one).
+  richTextSignatureFieldId Int?
+
   documentDataId String
   documentData   DocumentData @relation(fields: [documentDataId], references: [id], onDelete: Cascade)
 

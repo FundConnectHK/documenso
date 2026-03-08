@@ -1,7 +1,6 @@
 import { Plural, Trans } from '@lingui/react/macro';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { BanIcon, DownloadCloudIcon } from 'lucide-react';
-import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
@@ -32,7 +31,7 @@ export const EnvelopeSignerHeader = () => {
     <nav className="embed--DocumentWidgetHeader bg-background border-border max-w-screen flex flex-row justify-between border-b px-4 py-3 md:px-6">
       {/* Left side - Logo and title */}
       <div className="flex min-w-0 flex-1 items-center space-x-2 md:w-auto md:flex-none">
-        <Link to="/" className="flex-shrink-0">
+        <div className="flex-shrink-0">
           {envelopeData.settings.brandingEnabled && envelopeData.settings.brandingLogo ? (
             <img
               src={`/api/branding/logo/team/${envelope.teamId}`}
@@ -45,7 +44,7 @@ export const EnvelopeSignerHeader = () => {
               <BrandingLogoIcon className="h-6 w-auto md:hidden" />
             </>
           )}
-        </Link>
+        </div>
 
         <h1
           title={envelope.title}

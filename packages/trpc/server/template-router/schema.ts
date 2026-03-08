@@ -139,6 +139,12 @@ export const ZCreateDocumentFromTemplateRequestSchema = z.object({
       'The fields to prefill on the document before sending it out. Useful when you want to create a document from an existing template and pre-fill the fields with specific values.',
     )
     .optional(),
+  richTextSigningAreaFieldIds: z
+    .array(z.number())
+    .describe(
+      'Template field IDs to mark as rich text signing area. Each must be a SIGNATURE type field. Each recipient can have at most one.',
+    )
+    .optional(),
 });
 
 export const ZCreateDocumentFromTemplateResponseSchema = ZDocumentSchema;

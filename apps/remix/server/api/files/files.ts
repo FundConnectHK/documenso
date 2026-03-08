@@ -153,12 +153,6 @@ export const filesRoute = new Hono<HonoEnv>()
     async (c) => {
       const { envelopeId, envelopeItemId, version } = c.req.valid('param');
 
-      const session = await getOptionalSession(c);
-
-      if (!session.user) {
-        return c.json({ error: 'Unauthorized' }, 401);
-      }
-
       const envelope = await prisma.envelope.findFirst({
         where: {
           id: envelopeId,
@@ -183,22 +177,6 @@ export const filesRoute = new Hono<HonoEnv>()
 
       if (!envelopeItem) {
         return c.json({ error: 'Envelope item not found' }, 404);
-      }
-
-      const team = await getTeamById({
-        userId: session.user.id,
-        teamId: envelope.teamId,
-      }).catch((error) => {
-        console.error(error);
-
-        return null;
-      });
-
-      if (!team) {
-        return c.json(
-          { error: 'User does not have access to the team that this envelope is associated with' },
-          403,
-        );
       }
 
       if (!envelopeItem.documentData) {

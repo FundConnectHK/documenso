@@ -16,9 +16,17 @@ echo "Building docker image for monorepo at $MONOREPO_ROOT"
 echo "App version: $APP_VERSION"
 echo "Git SHA: $GIT_SHA"
 
+# Check if --no-cache flag is provided
+NO_CACHE_FLAG=""
+if [ "$1" == "--no-cache" ] || [ "$NO_CACHE" == "1" ]; then
+    NO_CACHE_FLAG="--no-cache"
+    echo "⚠️  使用 --no-cache 选项，将重新构建所有层（不使用缓存）"
+fi
+
 # Build with temporary base tag
 docker build -f "$SCRIPT_DIR/Dockerfile" \
     --progress=plain \
+    $NO_CACHE_FLAG \
     -t "fundconnecthk-base" \
     "$MONOREPO_ROOT"
 

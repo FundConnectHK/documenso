@@ -20,13 +20,10 @@ export type LoadedPDFDocument = PDFDocumentProxy;
 
 /**
  * This imports the worker from the `pdfjs-dist` package.
- * Wrapped in typeof window check to prevent SSR evaluation.
+ * Use the static worker file that was copied during build.
  */
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString();
+  pdfjs.GlobalWorkerOptions.workerSrc = `${NEXT_PUBLIC_WEBAPP_URL()}/static/pdf.worker.min.mjs`;
 }
 
 const pdfViewerOptions = {

@@ -24,7 +24,7 @@ services:
     ports:
       - 9000:9000
       - 1025:2500
-      - 1100:1100
+      - 11100:1100
 
   minio:
     image: minio/minio

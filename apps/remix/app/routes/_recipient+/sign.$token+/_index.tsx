@@ -28,7 +28,6 @@ import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
 import { prisma } from '@documenso/prisma';
 import { SigningCard3D } from '@documenso/ui/components/signing-card';
 
-import { Header as AuthenticatedHeader } from '~/components/general/app-header';
 import { DocumentSigningAuthPageView } from '~/components/general/document-signing/document-signing-auth-page';
 import { DocumentSigningAuthProvider } from '~/components/general/document-signing/document-signing-auth-provider';
 import { DocumentSigningPageViewV1 } from '~/components/general/document-signing/document-signing-page-view-v1';
@@ -38,6 +37,19 @@ import { EnvelopeSigningProvider } from '~/components/general/document-signing/e
 import { superLoaderJson, useSuperLoaderData } from '~/utils/super-json-loader';
 
 import type { Route } from './+types/_index';
+
+// Preload critical resources for faster page load
+export const links: Route.LinksFunction = () => [
+  {
+    rel: 'preload',
+    href: '/static/pdf.worker.min.mjs',
+    as: 'script',
+  },
+  {
+    rel: 'preconnect',
+    href: '/api/files',
+  },
+];
 
 const handleV1Loader = async ({ params, request }: Route.LoaderArgs) => {
   const { requestMetadata } = getOptionalLoaderContext();
@@ -255,6 +267,7 @@ const handleV2Loader = async ({ params, request }: Route.LoaderArgs) => {
 
 export async function loader(loaderArgs: Route.LoaderArgs) {
   const { token } = loaderArgs.params;
+  const { request } = loaderArgs;
 
   if (!token) {
     throw new Response('Not Found', { status: 404 });
@@ -358,24 +371,6 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
           <p className="text-muted-foreground/60 mt-2.5 max-w-[60ch] text-center text-sm font-medium md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
-
-          {user ? (
-            <Link to="/" className="text-documenso-700 hover:text-documenso-600 mt-36">
-              <Trans>Go Back Home</Trans>
-            </Link>
-          ) : (
-            <p className="text-muted-foreground/60 mt-36 text-sm">
-              <Trans>
-                Want to send slick signing links like this one?{' '}
-                <Link
-                  to="https://documenso.com"
-                  className="text-documenso-700 hover:text-documenso-600"
-                >
-                  Check out Documenso.
-                </Link>
-              </Trans>
-            </p>
-          )}
         </div>
       </div>
     );
@@ -395,21 +390,17 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
         recipient={recipient}
         user={user}
       >
-        <>
-          {sessionData?.user && <AuthenticatedHeader />}
-
-          <div className="mb-8 mt-8 px-4 md:mb-12 md:mt-12 md:px-8">
-            <DocumentSigningPageViewV1
-              recipient={recipientWithFields}
-              document={document}
-              fields={fields}
-              completedFields={completedFields}
-              isRecipientsTurn={isRecipientsTurn}
-              allRecipients={allRecipients}
-              includeSenderDetails={includeSenderDetails}
-            />
-          </div>
-        </>
+        <div className="mb-8 mt-8 px-4 md:mb-12 md:mt-12 md:px-8">
+          <DocumentSigningPageViewV1
+            recipient={recipientWithFields}
+            document={document}
+            fields={fields}
+            completedFields={completedFields}
+            isRecipientsTurn={isRecipientsTurn}
+            allRecipients={allRecipients}
+            includeSenderDetails={includeSenderDetails}
+          />
+        </div>
       </DocumentSigningAuthProvider>
     </DocumentSigningProvider>
   );
@@ -457,24 +448,6 @@ const SigningPageV2 = ({ data }: { data: Awaited<ReturnType<typeof handleV2Loade
           <p className="text-muted-foreground/60 mt-2.5 max-w-[60ch] text-center text-sm font-medium md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
-
-          {user ? (
-            <Link to="/" className="text-documenso-700 hover:text-documenso-600 mt-36">
-              <Trans>Go Back Home</Trans>
-            </Link>
-          ) : (
-            <p className="text-muted-foreground/60 mt-36 text-sm">
-              <Trans>
-                Want to send slick signing links like this one?{' '}
-                <Link
-                  to="https://documenso.com"
-                  className="text-documenso-700 hover:text-documenso-600"
-                >
-                  Check out Documenso.
-                </Link>
-              </Trans>
-            </p>
-          )}
         </div>
       </div>
     );

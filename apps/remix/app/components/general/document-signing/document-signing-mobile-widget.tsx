@@ -8,6 +8,7 @@ import { match } from 'ts-pattern';
 
 import { Button } from '@documenso/ui/primitives/button';
 
+import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
 import { BrandingLogo } from '../branding-logo';
@@ -18,10 +19,13 @@ import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
 export const DocumentSigningMobileWidget = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const { currentEnvelopeItem } = useCurrentEnvelopeRender();
   const { hidePoweredBy = true } = useEmbedSigningContext() || {};
 
   const { recipientFieldsRemaining, recipient, requiredRecipientFields } =
     useRequiredEnvelopeSigningContext();
+
+  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
 
   /**
    * Pre open the widget for assistants to let them know it's there.
@@ -31,6 +35,16 @@ export const DocumentSigningMobileWidget = () => {
       setIsExpanded(true);
     }
   }, []);
+
+  if (isRichTextSigningMode) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="w-full max-w-[760px]">
+          <EnvelopeSignerCompleteDialog />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center px-2 pb-2 sm:px-4 sm:pb-6">
@@ -65,30 +79,32 @@ export const DocumentSigningMobileWidget = () => {
                       .otherwise(() => null)}
                   </h2>
 
-                  <p className="text-muted-foreground -mt-0.5 text-sm">
-                    {recipientFieldsRemaining.length === 0 ? (
-                      match(recipient.role)
-                        .with(RecipientRole.VIEWER, () => (
-                          <Trans>Please mark as viewed to complete</Trans>
-                        ))
-                        .with(RecipientRole.SIGNER, () => (
-                          <Trans>Please complete the document once reviewed</Trans>
-                        ))
-                        .with(RecipientRole.APPROVER, () => (
-                          <Trans>Please complete the document once reviewed</Trans>
-                        ))
-                        .with(RecipientRole.ASSISTANT, () => (
-                          <Trans>Please complete the document once reviewed</Trans>
-                        ))
-                        .otherwise(() => null)
-                    ) : (
-                      <Plural
-                        value={recipientFieldsRemaining.length}
-                        one="1 Field Remaining"
-                        other="# Fields Remaining"
-                      />
-                    )}
-                  </p>
+                  {!isRichTextSigningMode && (
+                    <p className="text-muted-foreground -mt-0.5 text-sm">
+                      {recipientFieldsRemaining.length === 0 ? (
+                        match(recipient.role)
+                          .with(RecipientRole.VIEWER, () => (
+                            <Trans>Please mark as viewed to complete</Trans>
+                          ))
+                          .with(RecipientRole.SIGNER, () => (
+                            <Trans>Please complete the document once reviewed</Trans>
+                          ))
+                          .with(RecipientRole.APPROVER, () => (
+                            <Trans>Please complete the document once reviewed</Trans>
+                          ))
+                          .with(RecipientRole.ASSISTANT, () => (
+                            <Trans>Please complete the document once reviewed</Trans>
+                          ))
+                          .otherwise(() => null)
+                      ) : (
+                        <Plural
+                          value={recipientFieldsRemaining.length}
+                          one="1 Field Remaining"
+                          other="# Fields Remaining"
+                        />
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -99,7 +115,8 @@ export const DocumentSigningMobileWidget = () => {
           </div>
 
           {/* Progress Bar */}
-          {recipient.role !== RecipientRole.VIEWER &&
+          {!isRichTextSigningMode &&
+            recipient.role !== RecipientRole.VIEWER &&
             recipient.role !== RecipientRole.ASSISTANT && (
               <div className="px-4 pb-3">
                 <div className="bg-muted relative h-[4px] rounded-md">

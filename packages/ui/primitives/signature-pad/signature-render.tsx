@@ -21,19 +21,28 @@ export const SignatureRender = ({ className, value }: SignatureRenderProps) => {
       return;
     }
 
-    const ctx = $el.current.getContext('2d');
+    const ctx = $el.current.getContext('2d', { willReadFrequently: true });
 
     if (!ctx) {
       return;
     }
 
-    ctx.clearRect(0, 0, $el.current.width, $el.current.height);
+    // Ensure canvas has valid dimensions
+    if ($el.current.width === 0 || $el.current.height === 0) {
+      $el.current.width = $el.current.clientWidth * SIGNATURE_CANVAS_DPI;
+      $el.current.height = $el.current.clientHeight * SIGNATURE_CANVAS_DPI;
+    }
 
     const canvasWidth = $el.current.width;
     const canvasHeight = $el.current.height;
-    const fontFamily = 'Caveat';
+
+    // Skip if canvas dimensions are invalid
+    if (canvasWidth === 0 || canvasHeight === 0) {
+      return;
+    }
 
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    const fontFamily = 'Caveat';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     // ctx.fillStyle = selectedColor; // Todo: Color not implemented...
@@ -71,33 +80,58 @@ export const SignatureRender = ({ className, value }: SignatureRenderProps) => {
       return;
     }
 
-    const ctx = $el.current.getContext('2d');
+    const ctx = $el.current.getContext('2d', { willReadFrequently: true });
 
     if (!ctx) {
       return;
     }
 
-    ctx.clearRect(0, 0, $el.current.width, $el.current.height);
+    // Ensure canvas has valid dimensions
+    if ($el.current.width === 0 || $el.current.height === 0) {
+      $el.current.width = $el.current.clientWidth * SIGNATURE_CANVAS_DPI;
+      $el.current.height = $el.current.clientHeight * SIGNATURE_CANVAS_DPI;
+    }
 
     const { width, height } = $el.current;
+
+    // Skip if canvas dimensions are still invalid
+    if (width === 0 || height === 0) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, width, height);
 
     const img = new Image();
 
     img.onload = () => {
+      if (!$el.current || !ctx) {
+        return;
+      }
+
+      // Re-check dimensions in case canvas was resized
+      const currentWidth = $el.current.width;
+      const currentHeight = $el.current.height;
+
+      if (currentWidth === 0 || currentHeight === 0) {
+        return;
+      }
+
       // Calculate the scaled dimensions while maintaining aspect ratio
-      const scale = Math.min(width / img.width, height / img.height);
+      const scale = Math.min(currentWidth / img.width, currentHeight / img.height);
       const scaledWidth = img.width * scale;
       const scaledHeight = img.height * scale;
 
       // Calculate center position
-      const x = (width - scaledWidth) / 2;
-      const y = (height - scaledHeight) / 2;
+      const x = (currentWidth - scaledWidth) / 2;
+      const y = (currentHeight - scaledHeight) / 2;
 
-      ctx?.drawImage(img, x, y, scaledWidth, scaledHeight);
+      ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
 
-      const defaultImageData = ctx?.getImageData(0, 0, width, height) || null;
-
+      // Only get image data if dimensions are valid
+      if (currentWidth > 0 && currentHeight > 0) {
+        const defaultImageData = ctx.getImageData(0, 0, currentWidth, currentHeight);
       $imageData.current = defaultImageData;
+      }
     };
 
     img.src = value;
@@ -105,16 +139,41 @@ export const SignatureRender = ({ className, value }: SignatureRenderProps) => {
 
   useEffect(() => {
     if ($el.current) {
-      $el.current.width = $el.current.clientWidth * SIGNATURE_CANVAS_DPI;
-      $el.current.height = $el.current.clientHeight * SIGNATURE_CANVAS_DPI;
+      const setCanvasSize = () => {
+        if ($el.current) {
+          const clientWidth = $el.current.clientWidth;
+          const clientHeight = $el.current.clientHeight;
+
+          if (clientWidth > 0 && clientHeight > 0) {
+            $el.current.width = clientWidth * SIGNATURE_CANVAS_DPI;
+            $el.current.height = clientHeight * SIGNATURE_CANVAS_DPI;
+          }
+        }
+      };
+
+      setCanvasSize();
+
+      // Use ResizeObserver to handle dynamic sizing
+      const resizeObserver = new ResizeObserver(() => {
+        setCanvasSize();
+      });
+
+      resizeObserver.observe($el.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
     }
   }, []);
 
   useEffect(() => {
+    // Ensure canvas has valid dimensions before rendering
+    if ($el.current && $el.current.width > 0 && $el.current.height > 0) {
     if (isBase64Image(value)) {
       renderImageSignature();
     } else {
       renderTypedSignature();
+      }
     }
   }, [value]);
 

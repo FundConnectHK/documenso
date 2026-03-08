@@ -63,6 +63,17 @@ export type DocumentSigningCompleteDialogProps = {
   };
   buttonSize?: 'sm' | 'lg';
   position?: 'start' | 'end' | 'center';
+  /**
+   * When true, always show "Complete" button and allow opening the dialog.
+   * Used for rich text signing mode where there is only one signature.
+   */
+  forceCompleteButton?: boolean;
+
+  /**
+   * Called when completion fails due to unsigned required fields.
+   * Use to show a modal listing the incomplete fields.
+   */
+  onIncompleteFieldsError?: () => void;
 };
 
 const ZNextSignerFormSchema = z.object({
@@ -93,6 +104,8 @@ export const DocumentSigningCompleteDialog = ({
   defaultNextSigner,
   buttonSize = 'lg',
   position,
+  forceCompleteButton = false,
+  onIncompleteFieldsError,
 }: DocumentSigningCompleteDialogProps) => {
   const { t } = useLingui();
 
@@ -121,7 +134,10 @@ export const DocumentSigningCompleteDialog = ({
     },
   });
 
-  const isComplete = useMemo(() => !fieldsContainUnsignedRequiredField(fields), [fields]);
+  const isComplete = useMemo(
+    () => forceCompleteButton || !fieldsContainUnsignedRequiredField(fields),
+    [fields, forceCompleteButton],
+  );
 
   const completionRequires2FA = useMemo(
     () => derivedRecipientAccessAuth.includes('TWO_FACTOR_AUTH'),
@@ -172,6 +188,12 @@ export const DocumentSigningCompleteDialog = ({
     } catch (error) {
       const err = AppError.parseError(error);
 
+      if (AppErrorCode.UNSIGNED_FIELDS === err.code) {
+        setShowDialog(false);
+        onIncompleteFieldsError?.();
+        return;
+      }
+
       if (AppErrorCode.TWO_FACTOR_AUTH_FAILED === err.code) {
         // This was a 2FA validation failure - show the 2FA dialog again with error
         form.setValue('accessAuthOptions', undefined);
@@ -201,7 +223,7 @@ export const DocumentSigningCompleteDialog = ({
           className="w-full"
           type="button"
           size={buttonSize}
-          onClick={fieldsValidated}
+          onClick={forceCompleteButton ? undefined : fieldsValidated}
           loading={isSubmitting}
           disabled={disabled}
         >

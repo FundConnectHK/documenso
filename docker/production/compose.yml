@@ -13,11 +13,12 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - /mnt/HC_Volume_104027077:/var/lib/postgresql/data
+      - /var/lib/fundconnecthk/postgres:/var/lib/postgresql/data
 
   mailserver:
     image: axllent/mailpit:latest
     container_name: mailpit
+    command: ["--smtp-auth-allow-insecure"]
     ports:
       - '8025:8025' # Web UI: http://服务器IP:8025
       - '1025:1025' # SMTP 端口
@@ -73,7 +74,11 @@ services:
       - NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=${NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH:-/opt/documenso/cert.p12}
       - NEXT_PRIVATE_SIGNING_PASSPHRASE=${NEXT_PRIVATE_SIGNING_PASSPHRASE}
       - NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS=${NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS}
+      - NEXT_PRIVATE_JOBS_PROVIDER=${NEXT_PRIVATE_JOBS_PROVIDER:-local}
+      
+
     ports:
-      - ${PORT:-3000}:${PORT:-3000}
+      - "3000:3000"
+
     volumes:
-      - /opt/fundconnecthk-contract/cert.p12:/opt/fundconnecthk-contract/cert.p12:ro
+      - /var/lib/fundconnecthk/cert/cert.p12:/var/lib/fundconnecthk/cert/cert.p12:ro

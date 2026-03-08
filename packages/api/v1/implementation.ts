@@ -906,6 +906,7 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           teamId: team.id,
           recipients: body.recipients,
           prefillFields: body.prefillFields,
+          richTextSigningAreaFieldIds: body.richTextSigningAreaFieldIds,
           folderId: body.folderId,
           override: {
             title: body.title,

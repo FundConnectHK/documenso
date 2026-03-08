@@ -3,7 +3,7 @@ import { lazy, useMemo } from 'react';
 import { Plural, Trans } from '@lingui/react/macro';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { motion } from 'framer-motion';
-import { ArrowLeftIcon, BanIcon, DownloadCloudIcon, PaperclipIcon } from 'lucide-react';
+import { ArrowLeftIcon, BanIcon, DownloadCloudIcon, Loader, PaperclipIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
@@ -31,6 +31,7 @@ import EnvelopeSignerForm from '../envelope-signing/envelope-signer-form';
 import { EnvelopeSignerHeader } from '../envelope-signing/envelope-signer-header';
 import { DocumentSigningMobileWidget } from './document-signing-mobile-widget';
 import { DocumentSigningRejectDialog } from './document-signing-reject-dialog';
+import { RichTextSigningView } from './rich-text-signing-view';
 import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
 
 const EnvelopeSignerPageRenderer = lazy(
@@ -53,9 +54,13 @@ export const DocumentSigningPageViewV2 = () => {
   const {
     isEmbed = false,
     allowDocumentRejection = true,
-    hidePoweredBy = true,
     onDocumentRejected,
   } = useEmbedSigningContext() || {};
+  
+  // Always hide powered by branding for recipient pages
+  const hidePoweredBy = true;
+
+  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
 
   /**
    * The total remaining fields remaining for the current recipient or selected assistant recipient.
@@ -96,25 +101,29 @@ export const DocumentSigningPageViewV2 = () => {
                 .with(RecipientRole.ASSISTANT, () => <Trans>Assist Document</Trans>)
                 .otherwise(() => null)}
 
-              <span className="ml-2 rounded border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
-                <Plural
-                  value={recipientFieldsRemaining.length}
-                  one="1 Field Remaining"
-                  other="# Fields Remaining"
-                />
-              </span>
+              {!isRichTextSigningMode && (
+                <span className="ml-2 rounded border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
+                  <Plural
+                    value={recipientFieldsRemaining.length}
+                    one="1 Field Remaining"
+                    other="# Fields Remaining"
+                  />
+                </span>
+              )}
             </h3>
 
-            <div className="relative my-4 h-[4px] rounded-md bg-muted">
-              <motion.div
-                layout="size"
-                layoutId="document-flow-container-step"
-                className="absolute inset-y-0 left-0 bg-documenso"
-                style={{
-                  width: `${100 - (100 / requiredRecipientFields.length) * (recipientFieldsRemaining.length ?? 0)}%`,
-                }}
-              />
-            </div>
+            {!isRichTextSigningMode && (
+              <div className="relative my-4 h-[4px] rounded-md bg-muted">
+                <motion.div
+                  layout="size"
+                  layoutId="document-flow-container-step"
+                  className="absolute inset-y-0 left-0 bg-documenso"
+                  style={{
+                    width: `${100 - (100 / requiredRecipientFields.length) * (recipientFieldsRemaining.length ?? 0)}%`,
+                  }}
+                />
+              </div>
+            )}
 
             <div className="embed--DocumentWidgetContent mt-6 space-y-3">
               <EnvelopeSignerForm />
@@ -210,13 +219,15 @@ export const DocumentSigningPageViewV2 = () => {
                     number={i + 1}
                     primaryText={doc.title}
                     secondaryText={
-                      <Plural
-                        one="1 Field"
-                        other="# Fields"
-                        value={
-                          remainingFields.filter((field) => field.envelopeItemId === doc.id).length
-                        }
-                      />
+                      isRichTextSigningMode ? null : (
+                        <Plural
+                          one="1 Field"
+                          other="# Fields"
+                          value={
+                            remainingFields.filter((field) => field.envelopeItemId === doc.id).length
+                          }
+                        />
+                      )
                     }
                     isSelected={currentEnvelopeItem?.id === doc.id}
                     buttonProps={{ onClick: () => setCurrentEnvelopeItem(doc.id) }}
@@ -227,12 +238,25 @@ export const DocumentSigningPageViewV2 = () => {
 
             {/* Document View */}
             <div className="embed--DocumentViewer flex flex-col items-center justify-center p-2 sm:mt-4 sm:p-4">
-              {currentEnvelopeItem ? (
+              {currentEnvelopeItem?.richTextContent ? (
+                <RichTextSigningView
+                  key={currentEnvelopeItem.id}
+                  richTextContent={currentEnvelopeItem.richTextContent}
+                  envelopeItemId={currentEnvelopeItem.id}
+                />
+              ) : currentEnvelopeItem ? (
                 <PDFViewerKonvaLazy
                   renderer="signing"
                   key={currentEnvelopeItem.id}
                   customPageRenderer={EnvelopeSignerPageRenderer}
                 />
+              ) : envelopeItems.length > 0 ? (
+                <div className="flex h-[80vh] max-h-[60rem] w-full flex-col items-center justify-center">
+                  <Loader className="h-12 w-12 animate-spin text-documenso" />
+                  <p className="mt-4 text-muted-foreground">
+                    <Trans>Loading document...</Trans>
+                  </p>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-32">
                   <p className="text-sm text-foreground">
@@ -241,20 +265,11 @@ export const DocumentSigningPageViewV2 = () => {
                 </div>
               )}
 
-              {/* Mobile widget - Additional padding to allow users to scroll */}
-              <div className="block pb-28 lg:hidden">
-                <DocumentSigningMobileWidget />
-              </div>
-
-              {!hidePoweredBy && (
-                <a
-                  href="https://documenso.com"
-                  target="_blank"
-                  className="fixed bottom-0 right-0 z-40 hidden cursor-pointer rounded-tl bg-primary px-2 py-1 text-xs font-medium text-primary-foreground opacity-60 hover:opacity-100 lg:block"
-                >
-                  <span>Powered by</span>
-                  <BrandingLogo className="ml-2 inline-block h-[14px]" />
-                </a>
+              {/* Mobile widget - hide during loading */}
+              {currentEnvelopeItem && (
+                <div className="block pb-28 lg:hidden">
+                  <DocumentSigningMobileWidget />
+                </div>
               )}
             </div>
           </div>

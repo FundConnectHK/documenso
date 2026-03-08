@@ -1,9 +1,10 @@
-import { type DocumentDataType, DocumentStatus } from '@prisma/client';
+import { DocumentDataType, DocumentStatus } from '@prisma/client';
 import contentDisposition from 'content-disposition';
 import { type Context } from 'hono';
 
 import { sha256 } from '@documenso/lib/universal/crypto';
 import { getFileServerSide } from '@documenso/lib/universal/upload/get-file.server';
+import { getPresignGetUrl } from '@documenso/lib/universal/upload/server-actions';
 
 import type { HonoEnv } from '../../router';
 
@@ -39,6 +40,31 @@ export const handleEnvelopeItemFileRequest = async ({
     return c.body(null, 304);
   }
 
+  // For S3 stored files, redirect directly to presigned URL for better performance
+  // This avoids proxying the file through the server (OSS → Server → Browser)
+  // Instead: OSS → Browser (direct)
+  if (documentData.type === DocumentDataType.S3_PATH) {
+    try {
+      const { url } = await getPresignGetUrl(documentDataToUse);
+
+      // For viewing (not downloading), redirect directly to OSS for better performance
+      // Downloads still need to be proxied to set Content-Disposition header
+      if (!isDownload) {
+        c.header('Cache-Control', status === DocumentStatus.COMPLETED 
+          ? 'public, max-age=31536000, immutable' 
+          : 'public, max-age=0, must-revalidate');
+        c.header('ETag', etag);
+        return c.redirect(url, 302);
+      }
+      // For downloads, we still proxy to set Content-Disposition header
+      // (OSS presigned URLs don't support Content-Disposition in redirect)
+    } catch (error) {
+      console.error('Failed to get presigned URL:', error);
+      // Fall through to proxy method if presigned URL fails
+    }
+  }
+
+  // For non-S3 files or when redirect fails, use the proxy method
   const file = await getFileServerSide({
     type: documentData.type,
     data: documentDataToUse,

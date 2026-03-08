@@ -1,3 +1,5 @@
+import './polyfills/promise-with-resolvers';
+
 import { StrictMode, startTransition, useEffect } from 'react';
 
 import { i18n } from '@lingui/core';
