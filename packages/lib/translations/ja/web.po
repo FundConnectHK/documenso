@@ -123,7 +123,7 @@ msgid "{0, plural, one {1 Field Remaining} other {# Fields Remaining}}"
 msgstr "{0, plural, other {残り # 個のフィールド}}"
 
 #. placeholder {0}: fields.filter((field) => field.envelopeItemId === doc.id).length
-#. placeholder {0}: remainingFields.filter((field) => field.envelopeItemId === doc.id).length
+#. placeholder {0}: remainingFields.filter((field) => field.envelopeItemId === doc.id) .length
 #: apps/remix/app/components/general/document-signing/document-signing-page-view-v2.tsx
 #: apps/remix/app/components/general/envelope-editor/envelope-file-selector.tsx
 msgid "{0, plural, one {1 Field} other {# Fields}}"
