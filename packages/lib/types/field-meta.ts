@@ -157,8 +157,10 @@ export type TDropdownFieldMeta = z.infer<typeof ZDropdownFieldMeta>;
 
 export const ZSignatureFieldMeta = ZBaseFieldMeta.extend({
   type: z.literal('signature'),
-  /** When true, this field is the rich text signing area for its recipient. Each recipient has at most one. */
+  /** When true, this field appears in the signature bar in rich text signing mode. Each signer can have multiple (e.g., signature and stamp). */
   richTextSigningArea: z.boolean().optional().default(false),
+  /** Label shown above the signature box in rich text signing mode (e.g., "簽名", "蓋章"). */
+  richTextSigningAreaLabel: z.string().optional(),
 });
 
 export type TSignatureFieldMeta = z.infer<typeof ZSignatureFieldMeta>;
@@ -200,11 +202,13 @@ export const ZFieldMetaPrefillFieldsSchema = z
         type: z.literal('radio'),
         label: z.string().optional(),
         value: z.string().optional(),
+        valueById: z.number().optional(),
       }),
       z.object({
         type: z.literal('checkbox'),
         label: z.string().optional(),
         value: z.array(z.string()).optional(),
+        valueById: z.array(z.number()).optional(),
       }),
       z.object({
         type: z.literal('dropdown'),

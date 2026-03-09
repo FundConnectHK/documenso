@@ -38,7 +38,7 @@ export const DocumentSigningMobileWidget = () => {
 
   if (isRichTextSigningMode) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-10 sm:px-6 sm:pb-8">
         <div className="w-full max-w-[760px]">
           <EnvelopeSignerCompleteDialog />
         </div>
@@ -47,7 +47,7 @@ export const DocumentSigningMobileWidget = () => {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center px-2 pb-2 sm:px-4 sm:pb-6">
+    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center px-2 pb-10 sm:px-4 sm:pb-8">
       <div className="pointer-events-auto w-full max-w-[760px]">
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
           {/* Main Header Bar */}

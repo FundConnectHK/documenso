@@ -8,6 +8,7 @@ import {
   CopyPlusIcon,
   DownloadCloudIcon,
   EyeIcon,
+  FileText,
   LinkIcon,
   MousePointer,
   SendIcon,
@@ -41,9 +42,10 @@ import { EnvelopeEditorSettingsDialog } from '~/components/general/envelope-edit
 import { EnvelopeEditorFieldsPage } from './envelope-editor-fields-page';
 import EnvelopeEditorHeader from './envelope-editor-header';
 import { EnvelopeEditorPreviewPage } from './envelope-editor-preview-page';
+import { EnvelopeEditorRichTextPage } from './envelope-editor-rich-text-page';
 import { EnvelopeEditorUploadPage } from './envelope-editor-upload-page';
 
-type EnvelopeEditorStep = 'upload' | 'addFields' | 'preview';
+type EnvelopeEditorStep = 'upload' | 'addFields' | 'richText' | 'preview';
 
 const envelopeEditorSteps = [
   {
@@ -61,8 +63,15 @@ const envelopeEditorSteps = [
     description: msg`Place and configure form fields in the document`,
   },
   {
-    id: 'preview',
+    id: 'richText',
     order: 3,
+    title: msg`Rich Text`,
+    icon: FileText,
+    description: msg`Edit rich text and insert field placeholders`,
+  },
+  {
+    id: 'preview',
+    order: 4,
     title: msg`Preview`,
     icon: EyeIcon,
     description: msg`Preview the document before sending`,
@@ -96,7 +105,7 @@ export default function EnvelopeEditor() {
       return 'upload';
     }
 
-    const validSteps: EnvelopeEditorStep[] = ['upload', 'addFields', 'preview'];
+    const validSteps: EnvelopeEditorStep[] = ['upload', 'addFields', 'richText', 'preview'];
 
     if (validSteps.includes(searchParamStep)) {
       return searchParamStep;
@@ -373,6 +382,7 @@ export default function EnvelopeEditor() {
             .with({ isStepLoading: true }, () => <SpinnerBox className="py-32" />)
             .with({ currentStep: 'upload' }, () => <EnvelopeEditorUploadPage />)
             .with({ currentStep: 'addFields' }, () => <EnvelopeEditorFieldsPage />)
+            .with({ currentStep: 'richText' }, () => <EnvelopeEditorRichTextPage />)
             .with({ currentStep: 'preview' }, () => <EnvelopeEditorPreviewPage />)
             .exhaustive()}
         </AnimateGenericFadeInOut>

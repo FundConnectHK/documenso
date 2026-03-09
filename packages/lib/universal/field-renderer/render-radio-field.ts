@@ -123,7 +123,7 @@ export const renderRadioFieldElement = (
 
   const { fieldWidth, fieldHeight } = calculateFieldPosition(field, pageWidth, pageHeight);
 
-  radioValues.forEach(({ value, checked }, index) => {
+  radioValues.forEach(({ id: optionId, value, checked }, index) => {
     const isRadioValueChecked = match(mode)
       .with('edit', () => checked)
       .with('sign', () => index.toString() === field.customText)
@@ -175,13 +175,14 @@ export const renderRadioFieldElement = (
       visible: isRadioValueChecked,
     });
 
+    const displayText = `${value} [${optionId}]`;
     const text = new Konva.Text({
       internalRadioIndex: index,
       id: `radio-text-${index}`,
       name: 'radio-text',
       x: textX,
       y: textY,
-      text: value,
+      text: displayText,
       width: textWidth,
       height: textHeight,
       fontSize,

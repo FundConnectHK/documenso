@@ -157,7 +157,7 @@ export const DocumentSigningPageViewV2 = () => {
                 trigger={
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <DownloadCloudIcon className="mr-2 h-4 w-4" />
-                    <Trans>Download PDF</Trans>
+                    <Trans>檢視原始PDF</Trans>
                   </Button>
                 }
               />

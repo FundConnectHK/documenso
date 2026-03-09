@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trans } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { useForm, useWatch } from 'react-hook-form';
 import type { z } from 'zod';
 
@@ -16,11 +16,14 @@ import {
   FormLabel,
 } from '@documenso/ui/primitives/form/form';
 
+import { Input } from '@documenso/ui/primitives/input';
+
 import { EditorGenericFontSizeField } from './editor-field-generic-field-forms';
 
 const ZSignatureFieldFormSchema = ZSignatureFieldMeta.pick({
   fontSize: true,
   richTextSigningArea: true,
+  richTextSigningAreaLabel: true,
 });
 
 type TSignatureFieldFormSchema = z.infer<typeof ZSignatureFieldFormSchema>;
@@ -28,23 +31,23 @@ type TSignatureFieldFormSchema = z.infer<typeof ZSignatureFieldFormSchema>;
 type EditorFieldSignatureFormProps = {
   value: TSignatureFieldMeta | undefined;
   onValueChange: (value: TSignatureFieldMeta) => void;
-  /** When true, the rich text signing area checkbox is disabled (another field already has it). */
-  richTextSigningAreaDisabled?: boolean;
 };
 
 export const EditorFieldSignatureForm = ({
   value = {
     type: 'signature',
+    richTextSigningArea: false,
   },
   onValueChange,
-  richTextSigningAreaDisabled = false,
 }: EditorFieldSignatureFormProps) => {
+  const { t } = useLingui();
   const form = useForm<TSignatureFieldFormSchema>({
     resolver: zodResolver(ZSignatureFieldFormSchema),
     mode: 'onChange',
     defaultValues: {
       fontSize: value.fontSize || DEFAULT_SIGNATURE_TEXT_FONT_SIZE,
       richTextSigningArea: value.richTextSigningArea ?? false,
+      richTextSigningAreaLabel: value.richTextSigningAreaLabel ?? '',
     },
   });
 
@@ -59,10 +62,11 @@ export const EditorFieldSignatureForm = ({
     const validatedFormValues = ZSignatureFieldFormSchema.safeParse(formValues);
 
     if (validatedFormValues.success) {
+      const { type: _type, ...rest } = value;
       onValueChange({
-        type: 'signature',
-        ...value,
+        ...rest,
         ...validatedFormValues.data,
+        type: 'signature',
       });
     }
   }, [formValues]);
@@ -86,7 +90,6 @@ export const EditorFieldSignatureForm = ({
                   <Checkbox
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    disabled={richTextSigningAreaDisabled}
                   />
                 </FormControl>
                 <div className="space-y-0.5 leading-none">
@@ -95,11 +98,33 @@ export const EditorFieldSignatureForm = ({
                   </FormLabel>
                   <p className="text-xs text-muted-foreground">
                     <Trans>
-                      Each signer can have at most one. When enabled, this field appears as the
-                      bottom signature bar in rich text signing mode.
+                      When enabled, this field appears in the signature bar in rich text signing
+                      mode. You can add multiple fields per signer (e.g., signature and stamp).
                     </Trans>
                   </p>
                 </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="richTextSigningAreaLabel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs">
+                  <Trans>Label for this signing area</Trans>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ''}
+                    placeholder={t`e.g. 簽名, 蓋章`}
+                    className="h-8 text-xs"
+                  />
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  <Trans>Shown above the signature box to indicate what to sign</Trans>
+                </p>
               </FormItem>
             )}
           />

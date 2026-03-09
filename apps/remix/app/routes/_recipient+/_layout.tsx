@@ -17,10 +17,11 @@ import type { Route } from './+types/_layout';
 export default function RecipientLayout({ matches }: Route.ComponentProps) {
   const { sessionData } = useOptionalSession();
 
-  // Hide the header for signing routes.
+  // Hide the header for signing routes (including complete page).
   const hideHeader = matches.some(
     (match) =>
       match?.id === 'routes/_recipient+/sign.$token+/_index' ||
+      match?.id === 'routes/_recipient+/sign.$token+/complete' ||
       match?.id === 'routes/_recipient+/d.$token+/_index',
   );
 

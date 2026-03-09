@@ -374,10 +374,9 @@ export default function EnvelopeSignerPageRenderer() {
         .with({ type: FieldType.SIGNATURE }, (field) => {
           handleSignatureFieldClick({
             field,
-            signature,
-            typedSignatureEnabled: envelope.documentMeta.typedSignatureEnabled,
-            uploadSignatureEnabled: envelope.documentMeta.uploadSignatureEnabled,
-            drawSignatureEnabled: envelope.documentMeta.drawSignatureEnabled,
+            typedSignatureEnabled: envelope.documentMeta?.typedSignatureEnabled ?? true,
+            uploadSignatureEnabled: envelope.documentMeta?.uploadSignatureEnabled ?? true,
+            drawSignatureEnabled: envelope.documentMeta?.drawSignatureEnabled ?? true,
           })
             .then(async (payload) => {
               if (payload) {

@@ -259,7 +259,7 @@ export const EnvelopeSignerCompleteDialog = () => {
       />
 
       <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>
-        <DialogContent>
+        <DialogContent position="center">
           <DialogHeader>
             <DialogTitle>
               <Trans>有未完成的必填欄位</Trans>

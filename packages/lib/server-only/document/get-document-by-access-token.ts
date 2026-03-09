@@ -37,6 +37,7 @@ export const getDocumentByAccessToken = async ({ token }: GetDocumentByAccessTok
           title: true,
           order: true,
           richTextContent: true,
+          richTextSignatureFieldId: true,
           documentDataId: true,
           envelopeId: true,
           documentData: {

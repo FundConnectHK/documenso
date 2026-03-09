@@ -5,13 +5,7 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { DocumentStatus } from '@prisma/client';
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  FileWarningIcon,
-  GripVerticalIcon,
-  Loader2,
-} from 'lucide-react';
+import { FileWarningIcon, GripVerticalIcon, Loader2 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { ErrorCode as DropzoneErrorCode, type FileRejection } from 'react-dropzone';
 import { Link } from 'react-router';
@@ -27,7 +21,6 @@ import { nanoid } from '@documenso/lib/universal/id';
 import { canEnvelopeItemsBeModified } from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
 import type { TCreateEnvelopeItemsPayload } from '@documenso/trpc/server/envelope-router/create-envelope-items.types';
-import { RichTextEditor } from '@documenso/ui/components/rich-text-editor/rich-text-editor';
 import { Button } from '@documenso/ui/primitives/button';
 import {
   Card,
@@ -36,11 +29,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@documenso/ui/primitives/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@documenso/ui/primitives/collapsible';
 import { DocumentDropzone } from '@documenso/ui/primitives/document-dropzone';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
@@ -79,18 +67,6 @@ export const EnvelopeEditorUploadPage = () => {
       })),
   );
 
-  const [expandedRichTextIds, setExpandedRichTextIds] = useState<Set<string>>(() => {
-    const first = envelope.envelopeItems.sort((a, b) => a.order - b.order)[0];
-    return first ? new Set([first.id]) : new Set();
-  });
-
-  useEffect(() => {
-    const firstWithId = localFiles.find((f) => f.envelopeItemId);
-    if (firstWithId && !expandedRichTextIds.size) {
-      setExpandedRichTextIds(new Set([firstWithId.envelopeItemId!]));
-    }
-  }, [localFiles]);
-
   const { mutateAsync: createEnvelopeItems, isPending: isCreatingEnvelopeItems } =
     trpc.envelope.item.createMany.useMutation({
       onSuccess: ({ data }) => {
@@ -98,7 +74,11 @@ export const EnvelopeEditorUploadPage = () => {
           .filter(
             (item) => !envelope.envelopeItems.find((envelopeItem) => envelopeItem.id === item.id),
           )
-          .map((item) => ({ ...item, richTextContent: null as string | null }));
+          .map((item) => ({
+            ...item,
+            richTextContent: null as string | null,
+            richTextSignatureFieldId: null as number | null,
+          }));
 
         setLocalEnvelope({
           envelopeItems: [...envelope.envelopeItems, ...createdEnvelopes],
@@ -241,17 +221,6 @@ export const EnvelopeEditorUploadPage = () => {
   const onEnvelopeItemTitleChange = (envelopeItemId: string, title: string) => {
     const newLocalFilesValue = localFiles.map((uploadingFile) =>
       uploadingFile.envelopeItemId === envelopeItemId ? { ...uploadingFile, title } : uploadingFile,
-    );
-
-    setLocalFiles(newLocalFilesValue);
-    debouncedUpdateEnvelopeItems(newLocalFilesValue);
-  };
-
-  const onRichTextContentChange = (envelopeItemId: string, richTextContent: string) => {
-    const newLocalFilesValue = localFiles.map((uploadingFile) =>
-      uploadingFile.envelopeItemId === envelopeItemId
-        ? { ...uploadingFile, richTextContent: richTextContent || null }
-        : uploadingFile,
     );
 
     setLocalFiles(newLocalFilesValue);
@@ -411,60 +380,11 @@ export const EnvelopeEditorUploadPage = () => {
                             </div>
 
                             {!localFile.isUploading && localFile.envelopeItemId && (
-                              <Collapsible
-                                open={expandedRichTextIds.has(localFile.envelopeItemId)}
-                                onOpenChange={(open) => {
-                                  setExpandedRichTextIds((prev) => {
-                                    const next = new Set(prev);
-                                    if (open) {
-                                      next.add(localFile.envelopeItemId!);
-                                    } else {
-                                      next.delete(localFile.envelopeItemId!);
-                                    }
-                                    return next;
-                                  });
-                                }}
-                              >
-                                <CollapsibleTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="-mt-1 flex w-full items-center justify-start gap-1 rounded-b-lg px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
-                                  >
-                                    {expandedRichTextIds.has(localFile.envelopeItemId) ? (
-                                      <ChevronUpIcon className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronDownIcon className="h-4 w-4" />
-                                    )}
-                                    <Trans>Edit rich text for signing page</Trans>
-                                  </Button>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                  <div className="mt-2 rounded-b-lg border border-t-0 border-accent/50 p-3">
-                                    <p className="mb-2 text-xs text-muted-foreground">
-                                      <Trans>
-                                        Uploaded PDF will be used for download. Rich text will be
-                                        displayed on the signing page.
-                                      </Trans>
-                                    </p>
-                                    <RichTextEditor
-                                      value={localFile.richTextContent ?? ''}
-                                      onChange={(html) =>
-                                        onRichTextContentChange(localFile.envelopeItemId!, html)
-                                      }
-                                      placeholder={t`Enter contract content for signing page...`}
-                                      disabled={!canItemsBeModified}
-                                    />
-                                    <p className="mt-3 text-xs text-muted-foreground">
-                                      <Trans>
-                                        In step 2, add a signature field and check &quot;Use as rich
-                                        text signing area for this signer&quot; to link it to the
-                                        bottom signature bar.
-                                      </Trans>
-                                    </p>
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
+                              <p className="-mt-1 px-4 py-2 text-xs text-muted-foreground">
+                                <Trans>
+                                  Edit rich text and insert field placeholders in Step 3.
+                                </Trans>
+                              </p>
                             )}
                           </div>
                         )}

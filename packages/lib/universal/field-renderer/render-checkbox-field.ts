@@ -132,7 +132,7 @@ export const renderCheckboxFieldElement = (
 
   const checkedValues: number[] = field.customText ? parseCheckboxCustomText(field.customText) : [];
 
-  checkboxValues.forEach(({ value, checked }, index) => {
+  checkboxValues.forEach(({ id: optionId, value, checked }, index) => {
     const isCheckboxChecked = match(mode)
       .with('edit', () => checked)
       .with('sign', () => checkedValues.includes(index))
@@ -190,13 +190,14 @@ export const renderCheckboxFieldElement = (
       visible: isCheckboxChecked,
     });
 
+    const displayText = `${value} [${optionId}]`;
     const text = new Konva.Text({
       internalCheckboxIndex: index,
       id: `checkbox-text-${index}`,
       name: 'checkbox-text',
       x: textX,
       y: textY,
-      text: value,
+      text: displayText,
       width: textWidth,
       height: textHeight,
       fontSize,

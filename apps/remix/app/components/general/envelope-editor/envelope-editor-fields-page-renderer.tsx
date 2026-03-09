@@ -146,6 +146,31 @@ export default function EnvelopeEditorFieldsPageRenderer() {
       return;
     }
 
+    const displayId = field.id ?? field.formId;
+    const idBadge = new Konva.Label({
+      x: 2,
+      y: 2,
+      listening: false,
+    });
+    idBadge.add(
+      new Konva.Tag({
+        fill: 'rgba(0,0,0,0.7)',
+        cornerRadius: 2,
+        pointerDirection: 'none',
+      }),
+    );
+    idBadge.add(
+      new Konva.Text({
+        text: String(displayId),
+        fontFamily: 'monospace',
+        fontSize: 10,
+        fill: 'white',
+        padding: 2,
+      }),
+    );
+    fieldGroup.add(idBadge);
+    idBadge.moveToTop();
+
     fieldGroup.off('click');
     fieldGroup.off('transformend');
     fieldGroup.off('dragend');

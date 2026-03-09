@@ -1010,6 +1010,10 @@ msgstr "Adicionar domínio de e-mail"
 msgid "Add Fields"
 msgstr "Adicionar campos"
 
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "Add fields in Step 2 first, then insert them here."
+msgstr ""
+
 #: apps/remix/app/components/dialogs/team-group-create-dialog.tsx
 msgid "Add group roles"
 msgstr "Adicionar funções do grupo"
@@ -1190,6 +1194,10 @@ msgstr "Todas as pastas"
 #: apps/remix/app/components/dialogs/document-delete-dialog.tsx
 msgid "All inserted signatures will be voided"
 msgstr "Todas as assinaturas inseridas serão invalidadas"
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "All options"
+msgstr ""
 
 #: apps/remix/app/components/dialogs/document-delete-dialog.tsx
 msgid "All recipients will be notified"
@@ -1786,6 +1794,10 @@ msgstr "Aguardando confirmação por e-mail"
 msgid "Back"
 msgstr "Voltar"
 
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "Back to Fields"
+msgstr ""
+
 #: apps/remix/app/routes/_authenticated+/admin+/site-settings.tsx
 msgid "Background Color"
 msgstr "Cor de fundo"
@@ -2170,7 +2182,7 @@ msgid "Click to insert field"
 msgstr "Clique para inserir o campo"
 
 #: apps/remix/app/components/general/document-signing/rich-text-signing-view.tsx
-msgid "Click to sign"
+msgid "Click to remove signature"
 msgstr ""
 
 #: apps/remix/app/routes/_authenticated+/o.$orgUrl.settings.sso.tsx
@@ -3557,9 +3569,7 @@ msgstr "Baixar certificado"
 msgid "Download Files"
 msgstr "Baixar arquivos"
 
-#: apps/remix/app/components/general/document-signing/document-signing-page-view-v2.tsx
 #: apps/remix/app/components/general/envelope-editor/envelope-editor.tsx
-#: apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx
 msgid "Download PDF"
 msgstr "Baixar PDF"
 
@@ -3666,11 +3676,12 @@ msgid "E.g. 100"
 msgstr ""
 
 #: apps/remix/app/components/forms/editor/editor-field-signature-form.tsx
-msgid "Each signer can have at most one. When enabled, this field appears as the bottom signature bar in rich text signing mode."
+msgid "e.g. 簽名, 蓋章"
 msgstr ""
 
 #: apps/remix/app/components/general/document/document-page-view-button.tsx
 #: apps/remix/app/components/general/document/document-page-view-dropdown.tsx
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
 #: apps/remix/app/components/general/teams/team-email-dropdown.tsx
 #: apps/remix/app/components/tables/documents-table-action-button.tsx
 #: apps/remix/app/components/tables/documents-table-action-dropdown.tsx
@@ -3680,13 +3691,21 @@ msgstr ""
 msgid "Edit"
 msgstr "Editar"
 
+#: apps/remix/app/components/general/envelope-editor/envelope-editor.tsx
+msgid "Edit rich text and insert field placeholders"
+msgstr ""
+
 #: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
-msgid "Edit rich text for signing page"
+msgid "Edit rich text and insert field placeholders in Step 3."
 msgstr ""
 
 #: apps/remix/app/routes/_authenticated+/t.$teamUrl+/templates.$id._index.tsx
 msgid "Edit Template"
 msgstr "Editar modelo"
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "Edit the content that will be displayed on the signing page. Use the Insert field button to add placeholders that reference fields from Step 2. Placeholders use the format: {FIELD_PLACEHOLDER_PREFIX}id{FIELD_PLACEHOLDER_SUFFIX}"
+msgstr ""
 
 #: apps/remix/app/routes/_authenticated+/t.$teamUrl+/settings.webhooks.$id.tsx
 msgid "Edit webhook"
@@ -3941,7 +3960,7 @@ msgstr "Informe um nome para a nova pasta. Pastas ajudam a organizar seus itens.
 msgid "Enter claim name"
 msgstr "Informe o nome da reivindicação"
 
-#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
 msgid "Enter contract content for signing page..."
 msgstr ""
 
@@ -4689,10 +4708,6 @@ msgstr "Se o aplicativo autenticador não suportar QR codes, use o código a seg
 msgid "Important: What This Means"
 msgstr "Importante: o que isso significa"
 
-#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
-msgid "In step 2, add a signature field and check \"Use as rich text signing area for this signer\" to link it to the bottom signature bar."
-msgstr ""
-
 #: apps/remix/app/components/tables/user-billing-organisations-table.tsx
 msgid "Inactive"
 msgstr ""
@@ -4770,6 +4785,10 @@ msgstr "Insira um valor no campo numérico"
 #: apps/remix/app/components/dialogs/sign-field-text-dialog.tsx
 msgid "Insert a value into the text field"
 msgstr "Insira um valor no campo de texto"
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "Insert field"
+msgstr ""
 
 #: apps/remix/app/components/tables/admin-document-recipient-item-table.tsx
 msgid "Inserted"
@@ -4920,6 +4939,10 @@ msgstr "Entrou {0}"
 #: packages/ui/primitives/document-flow/field-items-advanced-settings/text-field.tsx
 msgid "Label"
 msgstr "Rótulo"
+
+#: apps/remix/app/components/forms/editor/editor-field-signature-form.tsx
+msgid "Label for this signing area"
+msgstr ""
 
 #: apps/remix/app/components/embed/authoring/configure-document-advanced-settings.tsx
 #: apps/remix/app/components/general/envelope-editor/envelope-editor-settings-dialog.tsx
@@ -6335,6 +6358,8 @@ msgid "Preferences"
 msgstr "Preferências"
 
 #: apps/remix/app/components/forms/document-preferences-form.tsx
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
 #: apps/remix/app/components/general/envelope-editor/envelope-editor.tsx
 msgid "Preview"
 msgstr "Visualizar"
@@ -6876,6 +6901,14 @@ msgstr "Revogar acesso"
 msgid "Revoke all sessions"
 msgstr "Revogar todas as sessões"
 
+#: apps/remix/app/components/general/envelope-editor/envelope-editor.tsx
+msgid "Rich Text"
+msgstr ""
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-rich-text-page.tsx
+msgid "Rich Text Content"
+msgstr ""
+
 #: apps/remix/app/components/forms/editor/editor-field-generic-field-forms.tsx
 msgid "Right"
 msgstr "Direita"
@@ -7333,6 +7366,10 @@ msgstr "Mostrar configurações avançadas"
 msgid "Show templates in your public profile for your audience to sign and get started quickly"
 msgstr "Mostrar modelos no seu perfil público para seu público assinar e começar rapidamente"
 
+#: apps/remix/app/components/forms/editor/editor-field-signature-form.tsx
+msgid "Shown above the signature box to indicate what to sign"
+msgstr ""
+
 #: apps/remix/app/components/dialogs/sign-field-checkbox-dialog.tsx
 #: apps/remix/app/components/dialogs/sign-field-email-dialog.tsx
 #: apps/remix/app/components/dialogs/sign-field-initials-dialog.tsx
@@ -7346,6 +7383,7 @@ msgstr "Mostrar modelos no seu perfil público para seu público assinar e come�
 #: apps/remix/app/components/general/document-signing/document-signing-complete-dialog.tsx
 #: apps/remix/app/components/general/document-signing/document-signing-name-field.tsx
 #: apps/remix/app/components/general/document-signing/document-signing-signature-field.tsx
+#: apps/remix/app/components/general/document-signing/rich-text-signing-view.tsx
 #: apps/remix/app/components/general/document/document-page-view-button.tsx
 #: apps/remix/app/components/general/user-profile-skeleton.tsx
 #: apps/remix/app/components/general/user-profile-timur.tsx
@@ -9432,10 +9470,6 @@ msgid "Uploaded file not an allowed file type"
 msgstr "Arquivo enviado não é um tipo de arquivo permitido"
 
 #: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
-msgid "Uploaded PDF will be used for download. Rich text will be displayed on the signing page."
-msgstr ""
-
-#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
 #: apps/remix/app/components/general/envelope/envelope-drop-zone-wrapper.tsx
 msgid "Uploading"
 msgstr "Enviando"
@@ -10170,6 +10204,10 @@ msgstr "O que você pode fazer com equipes:"
 #: packages/ui/primitives/template-flow/add-template-placeholder-recipients.tsx
 msgid "When enabled, signers can choose who should sign next in the sequence instead of following the predefined order."
 msgstr "Quando habilitado, os signatários podem escolher quem deve assinar em seguida na sequência, em vez de seguir a ordem predefinida."
+
+#: apps/remix/app/components/forms/editor/editor-field-signature-form.tsx
+msgid "When enabled, this field appears in the signature bar in rich text signing mode. You can add multiple fields per signer (e.g., signature and stamp)."
+msgstr ""
 
 #: apps/remix/app/components/dialogs/passkey-create-dialog.tsx
 msgid "When you click continue, you will be prompted to add the first available authenticator on your system."
@@ -10959,10 +10997,19 @@ msgstr ""
 msgid "有未完成的必填欄位"
 msgstr ""
 
+#: apps/remix/app/components/general/document-signing/document-signing-page-view-v2.tsx
+#: apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx
+msgid "檢視原始PDF"
+msgstr ""
+
 #: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
 msgid "確定"
 msgstr ""
 
 #: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
 msgid "請聯繫管理員填入"
+msgstr ""
+
+#: apps/remix/app/components/general/document-signing/rich-text-signing-view.tsx
+msgid "點擊此處簽名"
 msgstr ""

@@ -115,7 +115,7 @@ const MobileDropdownMenu = () => {
             <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
               <div>
                 <DownloadCloudIcon className="mr-2 h-4 w-4" />
-                <Trans>Download PDF</Trans>
+                <Trans>檢視原始PDF</Trans>
               </div>
             </DropdownMenuItem>
           }

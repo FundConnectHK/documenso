@@ -1,5 +1,5 @@
-import { DocumentStatus, FieldType, RecipientRole } from '@prisma/client';
-import { CheckCircle2, Clock8, Loader2 } from 'lucide-react';
+import { DocumentStatus, FieldType, RecipientRole, SigningStatus } from '@prisma/client';
+import { CheckCircle2, Clock8 } from 'lucide-react';
 import { match } from 'ts-pattern';
 
 import signingCelebration from '@documenso/assets/images/signing-celebration.png';
@@ -12,7 +12,6 @@ import { getRecipientByToken } from '@documenso/lib/server-only/recipient/get-re
 import { getRecipientSignatures } from '@documenso/lib/server-only/recipient/get-recipient-signatures';
 import { getUserByEmail } from '@documenso/lib/server-only/user/get-user-by-email';
 import { env } from '@documenso/lib/utils/env';
-import { trpc } from '@documenso/trpc/react';
 import { SigningCard3D } from '@documenso/ui/components/signing-card';
 import { Badge } from '@documenso/ui/primitives/badge';
 
@@ -107,23 +106,29 @@ export default function CompletedSigningPage({ loaderData }: Route.ComponentProp
   const { isDocumentAccessValid, recipientName, signatures, document, recipient, recipientEmail } =
     loaderData;
 
-  // Poll signing status every few seconds
-  const { data: signingStatusData } = trpc.envelope.signingStatus.useQuery(
-    {
-      token: recipient?.token || '',
-    },
-    {
-      refetchInterval: 3000,
-      initialData: match(document?.status)
-        .with(DocumentStatus.COMPLETED, () => ({ status: 'COMPLETED' }) as const)
-        .with(DocumentStatus.REJECTED, () => ({ status: 'REJECTED' }) as const)
-        .with(DocumentStatus.PENDING, () => ({ status: 'PENDING' }) as const)
-        .otherwise(() => ({ status: 'PENDING' }) as const),
-    },
-  );
+  // Use document status from loader directly - no polling. When recipient has signed, show completed state.
+  const signingStatus =
+    document?.status === DocumentStatus.REJECTED
+      ? ('REJECTED' as const)
+      : recipient?.signingStatus === SigningStatus.SIGNED || document?.status === DocumentStatus.COMPLETED
+        ? ('COMPLETED' as const)
+        : ('PENDING' as const);
 
-  // Use signing status from query if available, otherwise fall back to document status
-  const signingStatus = signingStatusData?.status ?? 'PENDING';
+  // Poll signing status every few seconds (commented out - use loader data directly)
+  // const { data: signingStatusData } = trpc.envelope.signingStatus.useQuery(
+  //   {
+  //     token: recipient?.token || '',
+  //   },
+  //   {
+  //     refetchInterval: 3000,
+  //     initialData: match(document?.status)
+  //       .with(DocumentStatus.COMPLETED, () => ({ status: 'COMPLETED' }) as const)
+  //       .with(DocumentStatus.REJECTED, () => ({ status: 'REJECTED' }) as const)
+  //       .with(DocumentStatus.PENDING, () => ({ status: 'PENDING' }) as const)
+  //       .otherwise(() => ({ status: 'PENDING' }) as const),
+  //   },
+  // );
+  // const signingStatus = signingStatusData?.status ?? 'PENDING';
 
   if (!isDocumentAccessValid) {
     return <DocumentSigningAuthPageView email={recipientEmail} />;
@@ -146,23 +151,17 @@ export default function CompletedSigningPage({ loaderData }: Route.ComponentProp
             signingCelebrationImage={signingCelebration}
           />
 
-          <h2 className="mt-6 max-w-[35ch] text-center text-2xl font-semibold leading-normal md:text-3xl lg:text-4xl">
+          {/* <h2 className="mt-6 max-w-[35ch] text-center text-2xl font-semibold leading-normal md:text-3xl lg:text-4xl">
             {recipient.role === RecipientRole.SIGNER && <>文件已簽署</>}
             {recipient.role === RecipientRole.VIEWER && <>文件已查看</>}
             {recipient.role === RecipientRole.APPROVER && <>文件已批准</>}
-          </h2>
+          </h2> */}
 
           {match({ status: signingStatus, deletedAt: document.deletedAt })
             .with({ status: 'COMPLETED' }, () => (
               <div className="mt-4 flex items-center text-center text-documenso-700">
                 <CheckCircle2 className="mr-2 h-5 w-5" />
-                <span className="text-sm">所有人已簽署</span>
-              </div>
-            ))
-            .with({ status: 'PROCESSING' }, () => (
-              <div className="mt-4 flex items-center text-center text-orange-600">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                <span className="text-sm">處理文件中</span>
+                <span className="text-sm">文件已簽署</span>
               </div>
             ))
             .with({ deletedAt: null }, () => (
@@ -180,7 +179,6 @@ export default function CompletedSigningPage({ loaderData }: Route.ComponentProp
 
           {match({ status: signingStatus, deletedAt: document.deletedAt })
             .with({ status: 'COMPLETED' }, () => null)
-            .with({ status: 'PROCESSING' }, () => null)
             .with({ deletedAt: null }, () => null)
             .otherwise(() => (
               <p className="mt-2.5 max-w-[60ch] text-center text-sm font-medium text-muted-foreground/60 md:text-base">

@@ -84,7 +84,7 @@ export type CreateDocumentFromTemplateOptions = {
 
   /**
    * Template field IDs (from the template) to mark as rich text signing area.
-   * Each must be a SIGNATURE type field. Each recipient can have at most one.
+   * Each must be a SIGNATURE type field. Each recipient can have multiple (e.g., signature and stamp).
    */
   richTextSigningAreaFieldIds?: number[];
 
@@ -182,12 +182,6 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
       return meta;
     })
     .with({ type: 'radio' }, (field) => {
-      if (typeof field.value !== 'string') {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Invalid value for RADIO field ${field.id}: expected string, got ${typeof field.value}`,
-        });
-      }
-
       const result = ZRadioFieldMeta.safeParse(existingMeta);
 
       if (!result.success) {
@@ -198,18 +192,33 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
 
       const radioMeta = result.data;
 
-      // Validate that the value exists in the options
-      const valueExists = radioMeta.values?.some((option) => option.value === field.value);
-
-      if (!valueExists) {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Value "${field.value}" not found in options for RADIO field ${field.id}`,
-        });
+      const useValueById = 'valueById' in field && field.valueById !== undefined;
+      if (useValueById) {
+        const optionExists = radioMeta.values?.some((option) => option.id === field.valueById);
+        if (!optionExists) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Option ID ${field.valueById} not found in RADIO field ${field.id}`,
+          });
+        }
+      } else {
+        if (typeof field.value !== 'string') {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Invalid value for RADIO field ${field.id}: expected string or valueById, got ${typeof field.value}`,
+          });
+        }
+        const valueExists = radioMeta.values?.some((option) => option.value === field.value);
+        if (!valueExists) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Value "${field.value}" not found in options for RADIO field ${field.id}`,
+          });
+        }
       }
 
       const newValues = radioMeta.values?.map((option) => ({
         ...option,
-        checked: option.value === field.value,
+        checked: useValueById
+          ? option.id === field.valueById
+          : option.value === field.value,
       }));
 
       const meta: TRadioFieldMeta = {
@@ -233,28 +242,39 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
 
       const checkboxMeta = result.data;
 
-      if (!field.value) {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Value is required for CHECKBOX field ${field.id}`,
-        });
-      }
-
-      const fieldValue = field.value;
-
-      // Validate that all values exist in the options
-      for (const value of fieldValue) {
-        const valueExists = checkboxMeta.values?.some((option) => option.value === value);
-
-        if (!valueExists) {
+      const useValueById = 'valueById' in field && field.valueById !== undefined;
+      if (useValueById) {
+        const fieldValueById = field.valueById ?? [];
+        for (const id of fieldValueById) {
+          const optionExists = checkboxMeta.values?.some((option) => option.id === id);
+          if (!optionExists) {
+            throw new AppError(AppErrorCode.INVALID_BODY, {
+              message: `Option ID ${id} not found in CHECKBOX field ${field.id}`,
+            });
+          }
+        }
+      } else {
+        if (!field.value) {
           throw new AppError(AppErrorCode.INVALID_BODY, {
-            message: `Value "${value}" not found in options for CHECKBOX field ${field.id}`,
+            message: `Value or valueById is required for CHECKBOX field ${field.id}`,
           });
+        }
+        const fieldValue = field.value;
+        for (const value of fieldValue) {
+          const valueExists = checkboxMeta.values?.some((option) => option.value === value);
+          if (!valueExists) {
+            throw new AppError(AppErrorCode.INVALID_BODY, {
+              message: `Value "${value}" not found in options for CHECKBOX field ${field.id}`,
+            });
+          }
         }
       }
 
       const newValues = checkboxMeta.values?.map((option) => ({
         ...option,
-        checked: fieldValue.includes(option.value),
+        checked: useValueById
+          ? (field.valueById ?? []).includes(option.id)
+          : (field.value ?? []).includes(option.value),
       }));
 
       const meta: TCheckboxFieldMeta = {
@@ -565,6 +585,7 @@ export const createDocumentFromTemplate = async ({
     });
 
     let fieldsToCreate: Omit<Field, 'id' | 'secondaryId'>[] = [];
+    const templateFieldIds: number[] = [];
 
     // Get all template field IDs first so we can validate later
     const allTemplateFieldIds = finalRecipients.flatMap((recipient) =>
@@ -624,20 +645,6 @@ export const createDocumentFromTemplate = async ({
         }
       }
 
-      const richTextFieldsByRecipient = new Map<number, number>();
-      for (const fieldId of richTextSigningAreaFieldIds) {
-        const recipient = finalRecipients.find((r) => r.fields.some((f) => f.id === fieldId));
-        if (!recipient) {
-          continue;
-        }
-        const templateRecipientId = recipient.templateRecipientId;
-        if (richTextFieldsByRecipient.has(templateRecipientId)) {
-          throw new AppError(AppErrorCode.INVALID_BODY, {
-            message: `Each recipient can have at most one rich text signing area field`,
-          });
-        }
-        richTextFieldsByRecipient.set(templateRecipientId, fieldId);
-      }
     }
 
     Object.values(finalRecipients).forEach(({ token, fields }) => {
@@ -710,17 +717,66 @@ export const createDocumentFromTemplate = async ({
               });
           }
 
+          templateFieldIds.push(field.id);
           return payload;
         }),
       );
     });
 
-    await tx.field.createMany({
+    const createdFields = await tx.field.createManyAndReturn({
       data: fieldsToCreate.map((field) => ({
         ...field,
         fieldMeta: field.fieldMeta ? ZFieldMetaSchema.parse(field.fieldMeta) : undefined,
       })),
     });
+
+    const oldFieldIdToNewFieldIdMap: Record<number, number> = {};
+    fieldsToCreate.forEach((payload, index) => {
+      const oldId = templateFieldIds[index];
+      const created = createdFields.find(
+        (c) =>
+          c.envelopeItemId === payload.envelopeItemId &&
+          c.recipientId === payload.recipientId &&
+          c.page === payload.page &&
+          c.positionX === payload.positionX &&
+          c.positionY === payload.positionY,
+      );
+      if (oldId !== undefined && created) {
+        oldFieldIdToNewFieldIdMap[oldId] = created.id;
+      }
+    });
+
+    const remapRichTextPlaceholders = (content: string | null): string | null => {
+      if (!content) {
+        return content;
+      }
+      return content.replace(/\{\{field:(\d+)(?::(\d+))?\}\}/g, (_, oldId, optionIndex) => {
+        const newId = oldFieldIdToNewFieldIdMap[Number(oldId)];
+        const idToUse = newId !== undefined ? newId : Number(oldId);
+        return optionIndex !== undefined
+          ? `{{field:${idToUse}:${optionIndex}}}`
+          : `{{field:${idToUse}}}`;
+      });
+    };
+
+    const createdEnvelopeItems = await tx.envelopeItem.findMany({
+      where: { envelopeId: envelope.id },
+      select: { id: true },
+      orderBy: { order: 'asc' },
+    });
+    for (let i = 0; i < template.envelopeItems.length && i < createdEnvelopeItems.length; i++) {
+      const templateItem = template.envelopeItems[i];
+      const createdItem = createdEnvelopeItems[i];
+      if (templateItem?.richTextContent && createdItem) {
+        const remapped = remapRichTextPlaceholders(templateItem.richTextContent);
+        if (remapped !== templateItem.richTextContent) {
+          await tx.envelopeItem.update({
+            where: { id: createdItem.id },
+            data: { richTextContent: remapped },
+          });
+        }
+      }
+    }
 
     await tx.documentAuditLog.create({
       data: createDocumentAuditLogData({
