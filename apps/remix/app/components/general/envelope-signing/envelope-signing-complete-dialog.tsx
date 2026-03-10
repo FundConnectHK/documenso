@@ -26,6 +26,7 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
 import { DocumentSigningCompleteDialog } from '../document-signing/document-signing-complete-dialog';
+import { useOptionalDocumentSigningReadProgress } from '../document-signing/document-signing-read-progress-provider';
 import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
 
 export const EnvelopeSignerCompleteDialog = () => {
@@ -51,6 +52,7 @@ export const EnvelopeSignerCompleteDialog = () => {
   } = useRequiredEnvelopeSigningContext();
 
   const { currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
+  const readProgress = useOptionalDocumentSigningReadProgress();
 
   const { onDocumentCompleted, onDocumentError } = useEmbedSigningContext() || {};
 
@@ -256,6 +258,15 @@ export const EnvelopeSignerCompleteDialog = () => {
         position="center"
         forceCompleteButton={isRichTextSigningMode}
         onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
+        requireReadToBottom={Boolean(readProgress?.requiresScroll)}
+        hasReadToBottom={readProgress?.hasReadToBottom ?? true}
+        onReadCompleteRequired={() => {
+          toast({
+            title: t`提示`,
+            description: t`確認前請先閱讀完合同並簽署`,
+            variant: 'destructive',
+          });
+        }}
       />
 
       <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>

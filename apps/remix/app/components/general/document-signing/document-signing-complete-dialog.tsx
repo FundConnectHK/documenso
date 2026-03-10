@@ -74,6 +74,14 @@ export type DocumentSigningCompleteDialogProps = {
    * Use to show a modal listing the incomplete fields.
    */
   onIncompleteFieldsError?: () => void;
+
+  /**
+   * When true, requires user to scroll to bottom before completing.
+   * Used with hasReadToBottom and onReadCompleteRequired.
+   */
+  requireReadToBottom?: boolean;
+  hasReadToBottom?: boolean;
+  onReadCompleteRequired?: () => void;
 };
 
 const ZNextSignerFormSchema = z.object({
@@ -106,6 +114,9 @@ export const DocumentSigningCompleteDialog = ({
   position,
   forceCompleteButton = false,
   onIncompleteFieldsError,
+  requireReadToBottom = false,
+  hasReadToBottom = true,
+  onReadCompleteRequired,
 }: DocumentSigningCompleteDialogProps) => {
   const { t } = useLingui();
 
@@ -216,6 +227,29 @@ export const DocumentSigningCompleteDialog = ({
     void form.handleSubmit(onFormSubmit)();
   };
 
+  const handleCompleteButtonClick = (e: React.MouseEvent) => {
+    if (requireReadToBottom && !hasReadToBottom) {
+      e.preventDefault();
+      e.stopPropagation();
+      onReadCompleteRequired?.();
+      return;
+    }
+
+    if (!forceCompleteButton) {
+      fieldsValidated?.();
+    }
+
+    if (form.formState.isSubmitting || !isComplete) {
+      return;
+    }
+
+    form.reset({
+      name: defaultNextSigner?.name ?? '',
+      email: defaultNextSigner?.email ?? '',
+    });
+    setShowDialog(true);
+  };
+
   return (
     <Dialog open={showDialog} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -223,7 +257,7 @@ export const DocumentSigningCompleteDialog = ({
           className="w-full"
           type="button"
           size={buttonSize}
-          onClick={forceCompleteButton ? undefined : fieldsValidated}
+          onClick={handleCompleteButtonClick}
           loading={isSubmitting}
           disabled={disabled}
         >

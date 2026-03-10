@@ -168,6 +168,7 @@ export const RichTextSigningView = ({
 }: RichTextSigningViewProps) => {
   const { t } = useLingui();
   const { toast } = useToast();
+  const [signingFieldId, setSigningFieldId] = useState<number | null>(null);
 
   const { executeActionAuthProcedure } = useRequiredDocumentSigningAuthContext();
 
@@ -217,6 +218,7 @@ export const RichTextSigningView = ({
   };
 
   const handleSignClick = async (field: TFieldSignature) => {
+    setSigningFieldId(field.id);
     try {
       const payload = await handleSignatureFieldClick({
         field,
@@ -246,6 +248,8 @@ export const RichTextSigningView = ({
         description: t`An error occurred while signing the field.`,
         variant: 'destructive',
       });
+    } finally {
+      setSigningFieldId(null);
     }
   };
 
@@ -322,11 +326,17 @@ export const RichTextSigningView = ({
         <div className="mt-6 space-y-4">
           {signatureFieldsNeedingBar.map((field) => {
             const fieldWithSignature = field as FieldWithSignature;
+            const isFieldSigning = signingFieldId === field.id;
             return (
               <div
                 key={field.id}
-                className="flex min-h-[120px] flex-col rounded-lg border border-border bg-white p-4"
+                className="relative flex min-h-[120px] flex-col rounded-lg border border-border bg-white p-4"
               >
+                {isFieldSigning && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                )}
                 <div className="mb-2 text-xs text-muted-foreground">
                   {(field.fieldMeta as { richTextSigningAreaLabel?: string } | null)?.richTextSigningAreaLabel?.trim() ||
                     field.customText?.trim() ||
@@ -336,7 +346,8 @@ export const RichTextSigningView = ({
                   <button
                     type="button"
                     onClick={() => handleSignClick(fieldWithSignature as TFieldSignature)}
-                    className="flex h-24 w-full items-center justify-center rounded-md border border-transparent transition-colors hover:border-border hover:bg-muted/30"
+                    disabled={isFieldSigning}
+                    className="flex h-24 w-full items-center justify-center rounded-md border border-transparent transition-colors hover:border-border hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50"
                     title={t`Click to remove signature`}
                   >
                     {fieldWithSignature.signature.signatureImageAsBase64 ? (
@@ -355,10 +366,15 @@ export const RichTextSigningView = ({
                 ) : (
                   <button
                     type="button"
-                    onClick={async () => handleSignClick(fieldWithSignature as TFieldSignature)}
+                    onClick={() => handleSignClick(fieldWithSignature as TFieldSignature)}
+                    disabled={isFieldSigning}
                     className="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-white transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <PenLineIcon className="h-6 w-6" />
+                    {isFieldSigning ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      <PenLineIcon className="h-6 w-6" />
+                    )}
                     <span className="text-xs">
                       <Trans>點擊此處簽名</Trans>
                     </span>

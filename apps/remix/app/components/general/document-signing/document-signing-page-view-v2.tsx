@@ -29,6 +29,10 @@ import { EnvelopeItemSelector } from '../envelope-editor/envelope-file-selector'
 import EnvelopeSignerForm from '../envelope-signing/envelope-signer-form';
 import { EnvelopeSignerHeader } from '../envelope-signing/envelope-signer-header';
 import { DocumentSigningMobileWidget } from './document-signing-mobile-widget';
+import {
+  DocumentSigningReadProgressProvider,
+  useOptionalDocumentSigningReadProgress,
+} from './document-signing-read-progress-provider';
 import { DocumentSigningRejectDialog } from './document-signing-reject-dialog';
 import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
 import { RichTextSigningView } from './rich-text-signing-view';
@@ -38,7 +42,16 @@ const EnvelopeSignerPageRenderer = lazy(
 );
 
 export const DocumentSigningPageViewV2 = () => {
+  return (
+    <DocumentSigningReadProgressProvider>
+      <DocumentSigningPageViewV2Content />
+    </DocumentSigningReadProgressProvider>
+  );
+};
+
+const DocumentSigningPageViewV2Content = () => {
   const { envelopeItems, currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
+  const readProgress = useOptionalDocumentSigningReadProgress();
 
   const {
     isDirectTemplate,
@@ -121,6 +134,23 @@ export const DocumentSigningPageViewV2 = () => {
                     width: `${100 - (100 / requiredRecipientFields.length) * (recipientFieldsRemaining.length ?? 0)}%`,
                   }}
                 />
+              </div>
+            )}
+
+            {/* 閱讀進度條 - 僅在需要滾動時顯示 */}
+            {readProgress?.requiresScroll && (
+              <div className="my-4">
+                <p className="mb-2 text-xs text-muted-foreground">
+                  <Trans>閱讀進度</Trans>
+                </p>
+                <div className="relative h-[4px] rounded-md bg-muted">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 rounded-md bg-documenso"
+                    initial={false}
+                    animate={{ width: `${readProgress.readProgress}%` }}
+                    transition={{ duration: 0.2 }}
+                  />
+                </div>
               </div>
             )}
 
@@ -207,7 +237,22 @@ export const DocumentSigningPageViewV2 = () => {
           </div>
         </div>
 
-        <div className="embed--DocumentContainer flex-1 overflow-y-auto">
+        <div
+          ref={readProgress?.setScrollContainerRef}
+          onScroll={readProgress?.handleScroll}
+          className="embed--DocumentContainer relative flex-1 overflow-y-auto"
+        >
+          {/* 閱讀進度條 - 移動端顯示在文檔頂部，僅在需要滾動時顯示 */}
+          {readProgress?.requiresScroll && (
+            <div className="sticky top-0 z-10 h-1 bg-muted lg:hidden">
+              <motion.div
+                className="h-full bg-documenso"
+                initial={false}
+                animate={{ width: `${readProgress.readProgress}%` }}
+                transition={{ duration: 0.2 }}
+              />
+            </div>
+          )}
           <div className="flex flex-col">
             {/* Horizontal envelope item selector */}
             {envelopeItems.length > 1 && (

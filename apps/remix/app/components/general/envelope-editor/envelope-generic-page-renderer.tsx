@@ -83,6 +83,17 @@ export default function EnvelopeGenericPageRenderer() {
 
     const fieldTranslations = getClientSideFieldTranslations(i18n);
 
+    const signatureToRender =
+      field.inserted && field.signature
+        ? {
+            signatureImageAsBase64: field.signature.signatureImageAsBase64 ?? '',
+            typedSignature: field.signature.typedSignature ?? fieldTranslations.SIGNATURE,
+          }
+        : {
+            signatureImageAsBase64: '',
+            typedSignature: fieldTranslations.SIGNATURE,
+          };
+
     renderField({
       scale,
       pageLayer: pageLayer.current,
@@ -94,10 +105,7 @@ export default function EnvelopeGenericPageRenderer() {
         positionX: Number(field.positionX),
         positionY: Number(field.positionY),
         fieldMeta: field.fieldMeta,
-        signature: {
-          signatureImageAsBase64: '',
-          typedSignature: fieldTranslations.SIGNATURE,
-        },
+        signature: signatureToRender,
       },
       translations: fieldTranslations,
       pageWidth: unscaledViewport.width,

@@ -10999,6 +10999,10 @@ msgid "以下欄位尚未填寫："
 msgstr ""
 
 #: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
+msgid "提示"
+msgstr ""
+
+#: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
 msgid "有未完成的必填欄位"
 msgstr ""
 
@@ -11012,7 +11016,15 @@ msgid "確定"
 msgstr ""
 
 #: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
+msgid "確認前請先閱讀完合同並簽署"
+msgstr ""
+
+#: apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
 msgid "請聯繫管理員填入"
+msgstr ""
+
+#: apps/remix/app/components/general/document-signing/document-signing-page-view-v2.tsx
+msgid "閱讀進度"
 msgstr ""
 
 #: apps/remix/app/components/general/document-signing/rich-text-signing-view.tsx

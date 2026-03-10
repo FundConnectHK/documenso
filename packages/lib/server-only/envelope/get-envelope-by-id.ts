@@ -63,7 +63,11 @@ export const getEnvelopeById = async ({ id, userId, teamId, type }: GetEnvelopeB
           id: 'asc',
         },
       },
-      fields: true,
+      fields: {
+        include: {
+          signature: true,
+        },
+      },
       team: {
         select: {
           id: true,

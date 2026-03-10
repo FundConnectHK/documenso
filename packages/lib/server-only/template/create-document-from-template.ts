@@ -1,4 +1,4 @@
-import type { DocumentDistributionMethod, DocumentSigningOrder } from '@prisma/client';
+import type { DocumentDistributionMethod, DocumentSigningOrder, Prisma } from '@prisma/client';
 import {
   DocumentSource,
   EnvelopeType,
@@ -46,6 +46,7 @@ import type { ApiRequestMetadata } from '../../universal/extract-request-metadat
 import { getFileServerSide } from '../../universal/upload/get-file.server';
 import { putPdfFileServerSide } from '../../universal/upload/put-file.server';
 import { extractDerivedDocumentMeta } from '../../utils/document';
+import { toCheckboxCustomText, toRadioCustomText } from '../../utils/fields';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import {
   createDocumentAuthOptions,
@@ -66,6 +67,11 @@ type FinalRecipient = Pick<
 > & {
   templateRecipientId: number;
   fields: Field[];
+};
+
+type FieldToCreatePayload = Omit<Field, 'id' | 'secondaryId' | 'fieldMeta'> & {
+  fieldMeta: Prisma.JsonValue | null;
+  displayValueForRichText?: string;
 };
 
 export type CreateDocumentFromTemplateOptions = {
@@ -584,7 +590,7 @@ export const createDocumentFromTemplate = async ({
       },
     });
 
-    let fieldsToCreate: Omit<Field, 'id' | 'secondaryId'>[] = [];
+    let fieldsToCreate: FieldToCreatePayload[] = [];
     const templateFieldIds: number[] = [];
 
     // Get all template field IDs first so we can validate later
@@ -674,7 +680,7 @@ export const createDocumentFromTemplate = async ({
             }) as typeof field.fieldMeta;
           }
 
-          const payload = {
+          const payload: FieldToCreatePayload = {
             envelopeItemId: oldEnvelopeItemToNewEnvelopeItemIdMap[field.envelopeItemId],
             envelopeId: envelope.id,
             recipientId: recipient.id,
@@ -686,7 +692,7 @@ export const createDocumentFromTemplate = async ({
             height: field.height,
             customText: '',
             inserted: false,
-            fieldMeta,
+            fieldMeta: fieldMeta != null ? (fieldMeta as Prisma.JsonValue) : null,
           };
 
           if (prefillField) {
@@ -711,9 +717,52 @@ export const createDocumentFromTemplate = async ({
                 );
 
                 payload.inserted = true;
+                payload.displayValueForRichText = payload.customText;
               })
               .otherwise((selector) => {
                 payload.fieldMeta = getUpdatedFieldMeta(field, selector);
+                const updatedMeta = payload.fieldMeta;
+                if (updatedMeta && typeof updatedMeta === 'object') {
+                  const meta = updatedMeta as Record<string, unknown>;
+                  if (selector.type === 'text' && typeof meta.text === 'string') {
+                    payload.customText = meta.text;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.text;
+                  } else if (selector.type === 'number' && typeof meta.value === 'string') {
+                    payload.customText = meta.value;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.value;
+                  } else if (selector.type === 'dropdown' && typeof meta.defaultValue === 'string') {
+                    payload.customText = meta.defaultValue;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.defaultValue;
+                  } else if (selector.type === 'radio' && Array.isArray(meta.values)) {
+                    const idx = meta.values.findIndex(
+                      (v: { checked?: boolean }) => v?.checked === true,
+                    );
+                    if (idx >= 0) {
+                      const checkedOption = meta.values[idx] as { value?: string };
+                      payload.customText = toRadioCustomText(idx);
+                      payload.inserted = true;
+                      payload.displayValueForRichText =
+                        typeof checkedOption?.value === 'string' ? checkedOption.value : '';
+                    }
+                  } else if (selector.type === 'checkbox' && Array.isArray(meta.values)) {
+                    const indices = meta.values
+                      .map((v: { checked?: boolean }, i: number) => (v?.checked ? i : -1))
+                      .filter((i) => i >= 0);
+                    if (indices.length > 0) {
+                      const checkedValues = meta.values
+                        .filter((v: { checked?: boolean }) => v?.checked)
+                        .map((v: { value?: string }) => (typeof v?.value === 'string' ? v.value : ''))
+                        .filter(Boolean)
+                        .join(', ');
+                      payload.customText = toCheckboxCustomText(indices);
+                      payload.inserted = true;
+                      payload.displayValueForRichText = checkedValues;
+                    }
+                  }
+                }
               });
           }
 
@@ -723,11 +772,23 @@ export const createDocumentFromTemplate = async ({
       );
     });
 
+    const oldFieldIdToDisplayValueMap: Record<number, string> = {};
+    fieldsToCreate.forEach((payload, index) => {
+      const oldId = templateFieldIds[index];
+      const displayValue = payload.displayValueForRichText;
+      if (oldId !== undefined && displayValue !== undefined) {
+        oldFieldIdToDisplayValueMap[oldId] = displayValue;
+      }
+    });
+
     const createdFields = await tx.field.createManyAndReturn({
-      data: fieldsToCreate.map((field) => ({
-        ...field,
-        fieldMeta: field.fieldMeta ? ZFieldMetaSchema.parse(field.fieldMeta) : undefined,
-      })),
+      data: fieldsToCreate.map((field) => {
+        const { displayValueForRichText: _, ...fieldData } = field;
+        return {
+          ...fieldData,
+          fieldMeta: field.fieldMeta ? ZFieldMetaSchema.parse(field.fieldMeta) : undefined,
+        };
+      }),
     });
 
     const oldFieldIdToNewFieldIdMap: Record<number, number> = {};
@@ -738,21 +799,26 @@ export const createDocumentFromTemplate = async ({
           c.envelopeItemId === payload.envelopeItemId &&
           c.recipientId === payload.recipientId &&
           c.page === payload.page &&
-          c.positionX === payload.positionX &&
-          c.positionY === payload.positionY,
+          c.positionX.toString() === payload.positionX.toString() &&
+          c.positionY.toString() === payload.positionY.toString(),
       );
       if (oldId !== undefined && created) {
         oldFieldIdToNewFieldIdMap[oldId] = created.id;
       }
     });
 
-    const remapRichTextPlaceholders = (content: string | null): string | null => {
+    const processRichTextPlaceholders = (content: string | null): string | null => {
       if (!content) {
         return content;
       }
       return content.replace(/\{\{field:(\d+)(?::(\d+))?\}\}/g, (_, oldId, optionIndex) => {
-        const newId = oldFieldIdToNewFieldIdMap[Number(oldId)];
-        const idToUse = newId !== undefined ? newId : Number(oldId);
+        const oldIdNum = Number(oldId);
+        const displayValue = oldFieldIdToDisplayValueMap[oldIdNum];
+        if (displayValue !== undefined) {
+          return displayValue;
+        }
+        const newId = oldFieldIdToNewFieldIdMap[oldIdNum];
+        const idToUse = newId !== undefined ? newId : oldIdNum;
         return optionIndex !== undefined
           ? `{{field:${idToUse}:${optionIndex}}}`
           : `{{field:${idToUse}}}`;
@@ -762,17 +828,18 @@ export const createDocumentFromTemplate = async ({
     const createdEnvelopeItems = await tx.envelopeItem.findMany({
       where: { envelopeId: envelope.id },
       select: { id: true },
-      orderBy: { order: 'asc' },
     });
-    for (let i = 0; i < template.envelopeItems.length && i < createdEnvelopeItems.length; i++) {
-      const templateItem = template.envelopeItems[i];
-      const createdItem = createdEnvelopeItems[i];
+    for (const templateItem of template.envelopeItems) {
+      const newEnvelopeItemId = oldEnvelopeItemToNewEnvelopeItemIdMap[templateItem.id];
+      const createdItem = newEnvelopeItemId
+        ? createdEnvelopeItems.find((c) => c.id === newEnvelopeItemId)
+        : undefined;
       if (templateItem?.richTextContent && createdItem) {
-        const remapped = remapRichTextPlaceholders(templateItem.richTextContent);
-        if (remapped !== templateItem.richTextContent) {
+        const processed = processRichTextPlaceholders(templateItem.richTextContent);
+        if (processed !== templateItem.richTextContent) {
           await tx.envelopeItem.update({
             where: { id: createdItem.id },
-            data: { richTextContent: remapped },
+            data: { richTextContent: processed },
           });
         }
       }
