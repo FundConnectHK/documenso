@@ -33,6 +33,8 @@ export const DocumentSigningReadProgressProvider = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const recheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [readProgress, setReadProgress] = useState(0);
   const [hasReadToBottom, setHasReadToBottom] = useState(false);
   const [requiresScroll, setRequiresScroll] = useState(true);
@@ -64,6 +66,10 @@ export const DocumentSigningReadProgressProvider = ({
 
   const setScrollContainerRef = useCallback(
     (el: HTMLDivElement | null) => {
+      recheckIntervalRef.current && clearInterval(recheckIntervalRef.current);
+      recheckTimeoutRef.current && clearTimeout(recheckTimeoutRef.current);
+      recheckIntervalRef.current = null;
+      recheckTimeoutRef.current = null;
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
@@ -88,6 +94,15 @@ export const DocumentSigningReadProgressProvider = ({
         const resizeObserver = new ResizeObserver(checkDimensions);
         resizeObserver.observe(el);
         resizeObserverRef.current = resizeObserver;
+
+        // On mobile, content may load async (slower network). ResizeObserver doesn't fire when
+        // scrollHeight changes (only element size). Re-check periodically for first few seconds.
+        recheckIntervalRef.current = setInterval(checkDimensions, 400);
+        recheckTimeoutRef.current = setTimeout(() => {
+          recheckIntervalRef.current && clearInterval(recheckIntervalRef.current);
+          recheckIntervalRef.current = null;
+          recheckTimeoutRef.current = null;
+        }, 5000);
       }
     },
     [handleScroll],
