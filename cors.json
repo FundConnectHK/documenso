@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://contract.fundconnecthk.com"],
+    "method": ["GET", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

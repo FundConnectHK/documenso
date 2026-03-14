@@ -55,5 +55,11 @@ else
     fi
 fi
 
+# Tag and push to Google Artifact Registry
+GCR_IMAGE="europe-west1-docker.pkg.dev/fundconnecthk-489906/services/contract-service:latest"
+docker tag "fundconnecthk-base" "$GCR_IMAGE"
+echo "Pushing to $GCR_IMAGE..."
+docker push "$GCR_IMAGE"
+
 # Remove the temporary base tag
 docker rmi "fundconnecthk-base"

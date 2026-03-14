@@ -19,15 +19,15 @@ export type TeamEmailRemovedTemplateProps = {
 
 export const TeamEmailRemovedTemplate = ({
   assetBaseUrl = 'http://localhost:3002',
-  baseUrl = 'https://documenso.com',
-  teamEmail = 'example@documenso.com',
+  baseUrl = 'https://contract.fundconnecthk.com',
+  teamEmail = 'example@fundconnecthk.com',
   teamName = 'Team Name',
   teamUrl = 'demo',
 }: TeamEmailRemovedTemplateProps) => {
   const { _ } = useLingui();
   const branding = useBranding();
 
-  const previewText = msg`Team email removed for ${teamName} on Documenso`;
+  const previewText = msg`團隊 ${teamName} 的電子郵件已移除 - 香港資管通 FundConnectHK`;
 
   return (
     <Html>
@@ -57,13 +57,12 @@ export const TeamEmailRemovedTemplate = ({
 
             <Section className="p-2 text-slate-500">
               <Text className="text-center text-lg font-medium text-black">
-                <Trans>Team email removed</Trans>
+                <Trans>團隊電子郵件已移除</Trans>
               </Text>
 
               <Text className="my-1 text-center text-base">
                 <Trans>
-                  The team email <span className="font-bold">{teamEmail}</span> has been removed
-                  from the following team
+                  團隊電子郵件 <span className="font-bold">{teamEmail}</span> 已從以下團隊中移除
                 </Trans>
               </Text>
 

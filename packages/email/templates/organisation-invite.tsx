@@ -28,7 +28,7 @@ export type OrganisationInviteEmailProps = {
 
 export const OrganisationInviteEmailTemplate = ({
   assetBaseUrl = 'http://localhost:3002',
-  baseUrl = 'https://documenso.com',
+  baseUrl = 'https://contract.fundconnecthk.com',
   senderName = 'John Doe',
   organisationName = 'Organisation Name',
   token = '',
@@ -36,7 +36,7 @@ export const OrganisationInviteEmailTemplate = ({
   const { _ } = useLingui();
   const branding = useBranding();
 
-  const previewText = msg`Accept invitation to join an organisation on Documenso`;
+  const previewText = msg`接受加入組織的邀請 - 香港資管通 FundConnectHK`;
 
   return (
     <Html>
@@ -66,11 +66,11 @@ export const OrganisationInviteEmailTemplate = ({
 
             <Section className="p-2 text-slate-500">
               <Text className="text-center text-lg font-medium text-black">
-                <Trans>Join {organisationName} on Documenso</Trans>
+                <Trans>加入 {organisationName} 於香港資管通 FundConnectHK</Trans>
               </Text>
 
               <Text className="my-1 text-center text-base">
-                <Trans>You have been invited to join the following organisation</Trans>
+                <Trans>您已獲邀加入以下組織</Trans>
               </Text>
 
               <div className="mx-auto my-2 w-fit rounded-lg bg-gray-50 px-4 py-2 text-base font-medium text-slate-600">
@@ -79,22 +79,22 @@ export const OrganisationInviteEmailTemplate = ({
 
               <Text className="my-1 text-center text-base">
                 <Trans>
-                  by <span className="text-slate-900">{senderName}</span>
+                  邀請人：<span className="text-slate-900">{senderName}</span>
                 </Trans>
               </Text>
 
               <Section className="mb-6 mt-6 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="inline-flex items-center justify-center rounded-lg bg-[#F53333] px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={`${baseUrl}/organisation/invite/${token}`}
                 >
-                  <Trans>Accept</Trans>
+                  <Trans>接受</Trans>
                 </Button>
                 <Button
                   className="ml-4 inline-flex items-center justify-center rounded-lg bg-gray-50 px-6 py-3 text-center text-sm font-medium text-slate-600 no-underline"
                   href={`${baseUrl}/organisation/decline/${token}`}
                 >
-                  <Trans>Decline</Trans>
+                  <Trans>拒絕</Trans>
                 </Button>
               </Section>
             </Section>

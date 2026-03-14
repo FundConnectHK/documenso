@@ -31,7 +31,7 @@ export type ConfirmTeamEmailProps = {
 
 export const ConfirmTeamEmailTemplate = ({
   assetBaseUrl = 'http://localhost:3002',
-  baseUrl = 'https://documenso.com',
+  baseUrl = 'https://contract.fundconnecthk.com',
   teamName = 'Team Name',
   teamUrl = 'demo',
   token = '',
@@ -39,7 +39,7 @@ export const ConfirmTeamEmailTemplate = ({
   const { _ } = useLingui();
   const branding = useBranding();
 
-  const previewText = msg`Accept team email request for ${teamName} on Documenso`;
+  const previewText = msg`接受團隊 ${teamName} 的電子郵件驗證請求 - 香港資管通 FundConnectHK`;
 
   return (
     <Html>
@@ -69,13 +69,13 @@ export const ConfirmTeamEmailTemplate = ({
 
             <Section className="p-2 text-slate-500">
               <Text className="text-center text-lg font-medium text-black">
-                <Trans>Verify your team email address</Trans>
+                <Trans>驗證您的團隊電子郵件地址</Trans>
               </Text>
 
               <Text className="text-center text-base">
                 <Trans>
-                  <span className="font-bold">{teamName}</span> has requested to use your email
-                  address for their team on Documenso.
+                  <span className="font-bold">{teamName}</span>{' '}
+                  已請求使用您的電子郵件地址作為其團隊於香港資管通 FundConnectHK 的聯絡信箱。
                 </Trans>
               </Text>
 
@@ -86,43 +86,42 @@ export const ConfirmTeamEmailTemplate = ({
               <Section className="mt-6">
                 <Text className="my-0 text-sm">
                   <Trans>
-                    By accepting this request, you will be granting <strong>{teamName}</strong>{' '}
-                    access to:
+                    接受此請求後，您將授予 <strong>{teamName}</strong> 以下權限：
                   </Trans>
                 </Text>
 
                 <ul className="mb-0 mt-2">
                   <li className="text-sm">
-                    <Trans>View all documents sent to and from this email address</Trans>
+                    <Trans>檢視此電子郵件地址收發的所有文件</Trans>
                   </li>
                   <li className="mt-1 text-sm">
-                    <Trans>Allow document recipients to reply directly to this email address</Trans>
+                    <Trans>允許文件收件人直接回覆至此電子郵件地址</Trans>
                   </li>
                   <li className="mt-1 text-sm">
-                    <Trans>Send documents on behalf of the team using the email address</Trans>
+                    <Trans>使用此電子郵件地址代表團隊發送文件</Trans>
                   </li>
                 </ul>
 
                 <Text className="mt-2 text-sm">
                   <Trans>
-                    You can revoke access at any time in your team settings on Documenso{' '}
-                    <Link href={`${baseUrl}/settings/teams`}>here.</Link>
+                    您可隨時在香港資管通的團隊設定中撤銷存取權限{' '}
+                    <Link href={`${baseUrl}/settings/teams`}>按此。</Link>
                   </Trans>
                 </Text>
               </Section>
 
               <Section className="mb-6 mt-8 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="inline-flex items-center justify-center rounded-lg bg-[#F53333] px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={`${baseUrl}/team/verify/email/${token}`}
                 >
-                  <Trans>Accept</Trans>
+                  <Trans>接受</Trans>
                 </Button>
               </Section>
             </Section>
 
             <Text className="text-center text-xs text-slate-500">
-              <Trans>Link expires in 1 hour.</Trans>
+              <Trans>連結將於 1 小時後失效。</Trans>
             </Text>
           </Container>
 

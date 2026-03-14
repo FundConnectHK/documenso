@@ -41,12 +41,12 @@ export const TemplateDocumentInvite = ({
       <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
       <Section>
-        <Text className="text-primary mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold">
+        <Text className="mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold text-primary">
           {match({ selfSigner, organisationType, includeSenderDetails, teamName })
             .with({ selfSigner: true }, () => (
               <Trans>
-                Please {_(actionVerb).toLowerCase()} your document
-                <br />"{documentName}"
+                請{_(actionVerb).toLowerCase()}您的文件
+                <br />「{documentName}」
               </Trans>
             ))
             .with(
@@ -57,49 +57,46 @@ export const TemplateDocumentInvite = ({
               },
               () => (
                 <Trans>
-                  {inviterName} on behalf of "{teamName}" has invited you to{' '}
-                  {_(actionVerb).toLowerCase()}
-                  <br />"{documentName}"
+                  {inviterName} 代表「{teamName}」邀請您{_(actionVerb).toLowerCase()}
+                  <br />「{documentName}」
                 </Trans>
               ),
             )
             .with({ organisationType: OrganisationType.ORGANISATION, teamName: P.string }, () => (
               <Trans>
-                {teamName} has invited you to {_(actionVerb).toLowerCase()}
-                <br />"{documentName}"
+                {teamName} 邀請您{_(actionVerb).toLowerCase()}
+                <br />「{documentName}」
               </Trans>
             ))
             .otherwise(() => (
               <Trans>
-                {inviterName} has invited you to {_(actionVerb).toLowerCase()}
-                <br />"{documentName}"
+                {inviterName} 邀請您{_(actionVerb).toLowerCase()}
+                <br />「{documentName}」
               </Trans>
             ))}
         </Text>
 
         <Text className="my-1 text-center text-base text-slate-400">
           {match(role)
-            .with(RecipientRole.SIGNER, () => <Trans>Continue by signing the document.</Trans>)
-            .with(RecipientRole.VIEWER, () => <Trans>Continue by viewing the document.</Trans>)
-            .with(RecipientRole.APPROVER, () => <Trans>Continue by approving the document.</Trans>)
+            .with(RecipientRole.SIGNER, () => <Trans>請簽署文件以繼續。</Trans>)
+            .with(RecipientRole.VIEWER, () => <Trans>請檢視文件以繼續。</Trans>)
+            .with(RecipientRole.APPROVER, () => <Trans>請審批文件以繼續。</Trans>)
             .with(RecipientRole.CC, () => '')
-            .with(RecipientRole.ASSISTANT, () => (
-              <Trans>Continue by assisting with the document.</Trans>
-            ))
+            .with(RecipientRole.ASSISTANT, () => <Trans>請協助處理文件以繼續。</Trans>)
             .exhaustive()}
         </Text>
 
         <Section className="mb-6 mt-8 text-center">
           <Button
-            className="bg-documenso-500 text-sbase inline-flex items-center justify-center rounded-lg px-6 py-3 text-center font-medium text-black no-underline"
+            className="text-sbase inline-flex items-center justify-center rounded-lg bg-[#F53333] px-6 py-3 text-center font-medium text-black no-underline"
             href={signDocumentLink}
           >
             {match(role)
-              .with(RecipientRole.SIGNER, () => <Trans>View Document to sign</Trans>)
-              .with(RecipientRole.VIEWER, () => <Trans>View Document</Trans>)
-              .with(RecipientRole.APPROVER, () => <Trans>View Document to approve</Trans>)
+              .with(RecipientRole.SIGNER, () => <Trans>檢視並簽署文件</Trans>)
+              .with(RecipientRole.VIEWER, () => <Trans>檢視文件</Trans>)
+              .with(RecipientRole.APPROVER, () => <Trans>檢視並審批文件</Trans>)
               .with(RecipientRole.CC, () => '')
-              .with(RecipientRole.ASSISTANT, () => <Trans>View Document to assist</Trans>)
+              .with(RecipientRole.ASSISTANT, () => <Trans>檢視並協助文件</Trans>)
               .exhaustive()}
           </Button>
         </Section>

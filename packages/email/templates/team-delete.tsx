@@ -16,17 +16,17 @@ export type TeamDeleteEmailProps = {
 
 export const TeamDeleteEmailTemplate = ({
   assetBaseUrl = 'http://localhost:3002',
-  baseUrl = 'https://documenso.com',
+  baseUrl = 'https://contract.fundconnecthk.com',
   teamUrl = 'demo',
 }: TeamDeleteEmailProps) => {
   const { _ } = useLingui();
   const branding = useBranding();
 
-  const previewText = msg`A team you were a part of has been deleted`;
+  const previewText = msg`您所屬的團隊已被刪除`;
 
-  const title = msg`A team you were a part of has been deleted`;
+  const title = msg`您所屬的團隊已被刪除`;
 
-  const description = msg`The following team has been deleted. You will no longer be able to access this team and its documents`;
+  const description = msg`以下團隊已被刪除。您將無法再存取此團隊及其文件`;
 
   return (
     <Html>

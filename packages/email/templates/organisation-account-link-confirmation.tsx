@@ -36,8 +36,8 @@ export const OrganisationAccountLinkConfirmationTemplate = ({
 
   const previewText =
     type === 'create'
-      ? msg`A request has been made to create an account for you`
-      : msg`A request has been made to link your Documenso account`;
+      ? msg`有人請求代您建立帳戶`
+      : msg`有人請求連結您的香港資管通 FundConnectHK 帳戶`;
 
   return (
     <Html>
@@ -67,22 +67,21 @@ export const OrganisationAccountLinkConfirmationTemplate = ({
             <Section className="p-2 text-slate-500">
               <Text className="text-center text-lg font-medium text-black">
                 {type === 'create' ? (
-                  <Trans>Account creation request</Trans>
+                  <Trans>帳戶建立請求</Trans>
                 ) : (
-                  <Trans>Link your Documenso account</Trans>
+                  <Trans>連結您的香港資管通 FundConnectHK 帳戶</Trans>
                 )}
               </Text>
 
               <Text className="text-center text-base">
                 {type === 'create' ? (
                   <Trans>
-                    <span className="font-bold">{organisationName}</span> has requested to create an
-                    account on your behalf.
+                    <span className="font-bold">{organisationName}</span> 已請求代您建立帳戶。
                   </Trans>
                 ) : (
                   <Trans>
-                    <span className="font-bold">{organisationName}</span> has requested to link your
-                    current Documenso account to their organisation.
+                    <span className="font-bold">{organisationName}</span> 已請求將您的香港資管通
+                    FundConnectHK 帳戶連結至其組織。
                   </Trans>
                 )}
               </Text>
@@ -110,7 +109,7 @@ export const OrganisationAccountLinkConfirmationTemplate = ({
 
                 <Text className="mt-2 text-sm">
                   <Trans>
-                    You can unlink your account at any time in your security settings on Documenso{' '}
+                    您可隨時在香港資管通的帳戶安全設定中解除連結{' '}
                     <Link href={`${assetBaseUrl}/settings/security/linked-accounts`}>here.</Link>
                   </Trans>
                 </Text>
@@ -118,16 +117,16 @@ export const OrganisationAccountLinkConfirmationTemplate = ({
 
               <Section className="mb-6 mt-8 text-center">
                 <Button
-                  className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+                  className="inline-flex items-center justify-center rounded-lg bg-[#F53333] px-6 py-3 text-center text-sm font-medium text-black no-underline"
                   href={confirmationLink}
                 >
-                  <Trans>Review request</Trans>
+                  <Trans>檢視請求</Trans>
                 </Button>
               </Section>
             </Section>
 
             <Text className="text-center text-xs text-slate-500">
-              <Trans>Link expires in 30 minutes.</Trans>
+              <Trans>連結將於 30 分鐘後失效。</Trans>
             </Text>
           </Container>
 

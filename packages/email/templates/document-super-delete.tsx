@@ -39,7 +39,7 @@ export const DocumentSuperDeleteEmailTemplate = ({
               ) : (
                 <Img
                   src={getAssetUrl('/static/logo.png')}
-                  alt="Documenso Logo"
+                  alt="香港資管通 FundConnectHK"
                   className="mb-4 h-6"
                 />
               )}

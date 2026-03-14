@@ -12,7 +12,7 @@ export type ResetPasswordTemplateProps = Partial<TemplateResetPasswordProps>;
 
 export const ResetPasswordTemplate = ({
   userName = 'Lucas Smith',
-  userEmail = 'lucas@documenso.com',
+  userEmail = 'example@fundconnecthk.com',
   assetBaseUrl = 'http://localhost:3002',
 }: ResetPasswordTemplateProps) => {
   const { _ } = useLingui();
@@ -38,7 +38,7 @@ export const ResetPasswordTemplate = ({
               ) : (
                 <Img
                   src={getAssetUrl('/static/logo.png')}
-                  alt="Documenso Logo"
+                  alt="香港資管通 FundConnectHK"
                   className="mb-4 h-6"
                 />
               )}
@@ -72,7 +72,10 @@ export const ResetPasswordTemplate = ({
                 <Trans>
                   Didn't request a password change? We are here to help you secure your account,
                   just{' '}
-                  <Link className="text-documenso-700 font-normal" href="mailto:hi@documenso.com">
+                  <Link
+                    className="font-normal text-[#B30000]"
+                    href="mailto:support@fundconnecthk.com"
+                  >
                     contact us.
                   </Link>
                 </Trans>
