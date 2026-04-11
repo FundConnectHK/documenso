@@ -116,7 +116,7 @@ export const EnvelopeDownloadDialog = ({
     <Dialog open={open} onOpenChange={(value) => setOpen(value)}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent>
+      <DialogContent position="center">
         <DialogHeader>
           <DialogTitle>
             <Trans>Download Files</Trans>

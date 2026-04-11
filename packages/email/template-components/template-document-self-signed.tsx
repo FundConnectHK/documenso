@@ -34,26 +34,26 @@ export const TemplateDocumentSelfSigned = ({
                 src={getAssetUrl('/static/completed.png')}
                 className="-mt-0.5 mr-2 inline h-7 w-7 align-middle"
               />
-              <Trans>Completed</Trans>
+              <Trans>已完成</Trans>
             </Text>
           </Column>
         </Section>
 
-        <Text className="text-primary mb-0 mt-6 text-center text-lg font-semibold">
-          <Trans>You have signed “{documentName}”</Trans>
+        <Text className="mb-0 mt-6 text-center text-lg font-semibold text-primary">
+          <Trans>您已簽署「{documentName}」</Trans>
         </Text>
 
         <Text className="mx-auto mb-6 mt-1 max-w-[80%] text-center text-base text-slate-400">
           <Trans>
-            Create a{' '}
+            建立{' '}
             <Link
               href={signUpUrl}
               target="_blank"
-              className="text-documenso-700 hover:text-documenso-600 whitespace-nowrap"
+              className="whitespace-nowrap text-[#B30000] hover:text-[#D11818]"
             >
-              free account
+              免費帳戶
             </Link>{' '}
-            to access your signed documents at any time.
+            以隨時存取您已簽署的文件。
           </Trans>
         </Text>
 
@@ -66,18 +66,18 @@ export const TemplateDocumentSelfSigned = ({
               src={getAssetUrl('/static/user-plus.png')}
               className="mb-0.5 mr-2 inline h-5 w-5 align-middle"
             />
-            <Trans>Create account</Trans>
+            <Trans>建立帳戶</Trans>
           </Button>
 
           <Button
             className="rounded-lg border border-solid border-slate-200 px-4 py-2 text-center text-sm font-medium text-black no-underline"
-            href="https://documenso.com/pricing"
+            href={signUpUrl}
           >
             <Img
               src={getAssetUrl('/static/review.png')}
               className="mb-0.5 mr-2 inline h-5 w-5 align-middle"
             />
-            <Trans>View plans</Trans>
+            <Trans>檢視方案</Trans>
           </Button>
         </Section>
       </Section>

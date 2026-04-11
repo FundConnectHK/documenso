@@ -14,7 +14,10 @@ import {
   RECIPIENT_DIFF_TYPE,
 } from '@documenso/lib/types/document-audit-logs';
 import type { RequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
-import { fieldsContainUnsignedRequiredField } from '@documenso/lib/utils/advanced-fields-helpers';
+import {
+  fieldsContainUnsignedRequiredField,
+  isFieldUnsignedAndRequired,
+} from '@documenso/lib/utils/advanced-fields-helpers';
 import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-logs';
 import { prisma } from '@documenso/prisma';
 
@@ -128,7 +131,16 @@ export const completeDocumentWithToken = async ({
   });
 
   if (fieldsContainUnsignedRequiredField(fields)) {
-    throw new Error(`Recipient ${recipient.id} has unsigned fields`);
+    const unsignedFieldLabels = fields
+      .filter(isFieldUnsignedAndRequired)
+      .map((f) => f.customText || f.type)
+      .filter(Boolean);
+
+    throw new AppError(AppErrorCode.UNSIGNED_FIELDS, {
+      message: `Recipient ${recipient.id} has unsigned fields`,
+      userMessage: unsignedFieldLabels.length > 0 ? unsignedFieldLabels.join(', ') : undefined,
+      statusCode: 400,
+    });
   }
 
   let recipientName = recipient.name;

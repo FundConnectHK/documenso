@@ -8,8 +8,6 @@ import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signat
 
 type HandleSignatureFieldClickOptions = {
   field: TFieldSignature;
-  fullName?: string;
-  signature: string | null;
   typedSignatureEnabled?: boolean;
   uploadSignatureEnabled?: boolean;
   drawSignatureEnabled?: boolean;
@@ -18,14 +16,7 @@ type HandleSignatureFieldClickOptions = {
 export const handleSignatureFieldClick = async (
   options: HandleSignatureFieldClickOptions,
 ): Promise<Extract<TSignEnvelopeFieldValue, { type: typeof FieldType.SIGNATURE }> | null> => {
-  const {
-    field,
-    fullName,
-    signature,
-    typedSignatureEnabled,
-    uploadSignatureEnabled,
-    drawSignatureEnabled,
-  } = options;
+  const { field, typedSignatureEnabled, uploadSignatureEnabled, drawSignatureEnabled } = options;
 
   if (field.type !== FieldType.SIGNATURE) {
     throw new AppError(AppErrorCode.INVALID_REQUEST, {
@@ -40,16 +31,11 @@ export const handleSignatureFieldClick = async (
     };
   }
 
-  let signatureToInsert = signature;
-
-  if (!signatureToInsert) {
-    signatureToInsert = await SignFieldSignatureDialog.call({
-      fullName,
-      typedSignatureEnabled,
-      uploadSignatureEnabled,
-      drawSignatureEnabled,
-    });
-  }
+  const signatureToInsert = await SignFieldSignatureDialog.call({
+    typedSignatureEnabled,
+    uploadSignatureEnabled,
+    drawSignatureEnabled,
+  });
 
   if (!signatureToInsert) {
     return null;

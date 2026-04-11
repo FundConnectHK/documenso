@@ -14,7 +14,6 @@ import {
   ZDocumentAccessAuthSchema,
 } from '@documenso/lib/types/document-auth';
 import { fieldsContainUnsignedRequiredField } from '@documenso/lib/utils/advanced-fields-helpers';
-import { zEmail } from '@documenso/lib/utils/zod';
 import { Button } from '@documenso/ui/primitives/button';
 import {
   Dialog,
@@ -58,18 +57,36 @@ export type DocumentSigningCompleteDialogProps = {
     name: string;
     email: string;
   };
-  recipientPayload?: {
+  directTemplatePayload?: {
     name: string;
     email: string;
   };
   buttonSize?: 'sm' | 'lg';
   position?: 'start' | 'end' | 'center';
-  disableNameInput?: boolean;
+  /**
+   * When true, always show "Complete" button and allow opening the dialog.
+   * Used for rich text signing mode where there is only one signature.
+   */
+  forceCompleteButton?: boolean;
+
+  /**
+   * Called when completion fails due to unsigned required fields.
+   * Use to show a modal listing the incomplete fields.
+   */
+  onIncompleteFieldsError?: () => void;
+
+  /**
+   * When true, requires user to scroll to bottom before completing.
+   * Used with hasReadToBottom and onReadCompleteRequired.
+   */
+  requireReadToBottom?: boolean;
+  hasReadToBottom?: boolean;
+  onReadCompleteRequired?: () => void;
 };
 
 const ZNextSignerFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: zEmail('Invalid email address'),
+  email: z.string().email('Invalid email address'),
   accessAuthOptions: ZDocumentAccessAuthSchema.optional(),
 });
 
@@ -77,7 +94,7 @@ type TNextSignerFormSchema = z.infer<typeof ZNextSignerFormSchema>;
 
 const ZDirectRecipientFormSchema = z.object({
   name: z.string(),
-  email: zEmail('Invalid email address'),
+  email: z.string().email('Invalid email address'),
 });
 
 type TDirectRecipientFormSchema = z.infer<typeof ZDirectRecipientFormSchema>;
@@ -91,11 +108,15 @@ export const DocumentSigningCompleteDialog = ({
   recipient,
   disabled = false,
   allowDictateNextSigner = false,
-  recipientPayload,
+  directTemplatePayload,
   defaultNextSigner,
   buttonSize = 'lg',
   position,
-  disableNameInput = false,
+  forceCompleteButton = false,
+  onIncompleteFieldsError,
+  requireReadToBottom = false,
+  hasReadToBottom = true,
+  onReadCompleteRequired,
 }: DocumentSigningCompleteDialogProps) => {
   const { t } = useLingui();
 
@@ -116,15 +137,18 @@ export const DocumentSigningCompleteDialog = ({
     },
   });
 
-  const recipientForm = useForm<TDirectRecipientFormSchema>({
+  const directRecipientForm = useForm<TDirectRecipientFormSchema>({
     resolver: zodResolver(ZDirectRecipientFormSchema),
-    values: {
-      name: recipientPayload?.name ?? '',
-      email: recipientPayload?.email ?? '',
+    defaultValues: {
+      name: directTemplatePayload?.name ?? '',
+      email: directTemplatePayload?.email ?? '',
     },
   });
 
-  const isComplete = useMemo(() => !fieldsContainUnsignedRequiredField(fields), [fields]);
+  const isComplete = useMemo(
+    () => forceCompleteButton || !fieldsContainUnsignedRequiredField(fields),
+    [fields, forceCompleteButton],
+  );
 
   const completionRequires2FA = useMemo(
     () => derivedRecipientAccessAuth.includes('TWO_FACTOR_AUTH'),
@@ -148,20 +172,16 @@ export const DocumentSigningCompleteDialog = ({
 
   const onFormSubmit = async (data: TNextSignerFormSchema) => {
     try {
-      let recipientOverridePayload: { name: string; email: string } | undefined;
+      let directRecipient: { name: string; email: string } | undefined;
 
-      if (recipientPayload && !recipientPayload.email) {
-        const isFormValid = await recipientForm.trigger();
+      if (directTemplatePayload && !directTemplatePayload.email) {
+        const isFormValid = await directRecipientForm.trigger();
 
         if (!isFormValid) {
           return;
         }
 
-        recipientOverridePayload = recipientForm.getValues();
-      } else if (recipientPayload && recipientPayload.email && !recipient.email) {
-        // Form is hidden because we have an email (e.g. from embed context),
-        // but the DB recipient doesn't have one yet — send the override.
-        recipientOverridePayload = recipientPayload;
+        directRecipient = directRecipientForm.getValues();
       }
 
       // Check if 2FA is required
@@ -175,9 +195,15 @@ export const DocumentSigningCompleteDialog = ({
           ? { name: data.name, email: data.email }
           : undefined;
 
-      await onSignatureComplete(nextSigner, data.accessAuthOptions, recipientOverridePayload);
+      await onSignatureComplete(nextSigner, data.accessAuthOptions, directRecipient);
     } catch (error) {
       const err = AppError.parseError(error);
+
+      if (AppErrorCode.UNSIGNED_FIELDS === err.code) {
+        setShowDialog(false);
+        onIncompleteFieldsError?.();
+        return;
+      }
 
       if (AppErrorCode.TWO_FACTOR_AUTH_FAILED === err.code) {
         // This was a 2FA validation failure - show the 2FA dialog again with error
@@ -201,6 +227,29 @@ export const DocumentSigningCompleteDialog = ({
     void form.handleSubmit(onFormSubmit)();
   };
 
+  const handleCompleteButtonClick = (e: React.MouseEvent) => {
+    if (requireReadToBottom && !hasReadToBottom) {
+      e.preventDefault();
+      e.stopPropagation();
+      onReadCompleteRequired?.();
+      return;
+    }
+
+    if (!forceCompleteButton) {
+      void fieldsValidated?.();
+    }
+
+    if (form.formState.isSubmitting || !isComplete) {
+      return;
+    }
+
+    form.reset({
+      name: defaultNextSigner?.name ?? '',
+      email: defaultNextSigner?.email ?? '',
+    });
+    setShowDialog(true);
+  };
+
   return (
     <Dialog open={showDialog} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -208,7 +257,7 @@ export const DocumentSigningCompleteDialog = ({
           className="w-full"
           type="button"
           size={buttonSize}
-          onClick={fieldsValidated}
+          onClick={handleCompleteButtonClick}
           loading={isSubmitting}
           disabled={disabled}
         >
@@ -264,12 +313,12 @@ export const DocumentSigningCompleteDialog = ({
         {!showTwoFactorForm && (
           <>
             <fieldset disabled={form.formState.isSubmitting} className="border-none p-0">
-              {recipientPayload && !recipientPayload.email && (
-                <Form {...recipientForm}>
+              {directTemplatePayload && !directTemplatePayload.email && (
+                <Form {...directRecipientForm}>
                   <div className="mb-4 flex flex-col gap-4">
                     <div className="flex flex-col gap-4 md:flex-row">
                       <FormField
-                        control={recipientForm.control}
+                        control={directRecipientForm.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem className="flex-1">
@@ -281,7 +330,7 @@ export const DocumentSigningCompleteDialog = ({
                                 {...field}
                                 className="mt-2"
                                 placeholder={t`Enter your name`}
-                                disabled={isNameLocked || disableNameInput}
+                                disabled={isNameLocked}
                               />
                             </FormControl>
 
@@ -291,7 +340,7 @@ export const DocumentSigningCompleteDialog = ({
                       />
 
                       <FormField
-                        control={recipientForm.control}
+                        control={directRecipientForm.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem className="flex-1">

@@ -1,24 +1,84 @@
-name: Deploy to Production
+name: Promote to Production
 
+# 两种触发方式：
+# 1. 手动在 GitHub Actions 页面点击 "Run workflow"（自动计算版本号）
+# 2. 手动 git push tag（如 git tag v1.2.3 && git push origin v1.2.3）
 on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: '版本升级类型'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch # v1.0.0 → v1.0.1（bug fix）
+          - minor # v1.0.0 → v1.1.0（新功能）
+          - major # v1.0.0 → v2.0.0（破坏性变更）
   push:
     tags:
-      - '*'
+      - 'v*'
 
 jobs:
-  deploy:
+  promote:
+    name: Promote main → release
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
-      - name: Checkout code
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
+      - name: Calculate and create tag (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        id: tag
+        run: |
+          # 获取最新 tag，如果没有则从 v0.0.0 开始
+          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST"
+
+          # 解析版本号
+          MAJOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f1)
+          MINOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f2)
+          PATCH=$(echo "$LATEST" | sed 's/v//' | cut -d. -f3)
+
+          # 根据选择升级版本
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New tag: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+          # 创建并推送 tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ steps.tag.outputs.new_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Print version info
+        run: |
+          GIT_SHA="$(git rev-parse HEAD)"
+          echo "Promoting version: ${{ steps.version.outputs.version }} ($GIT_SHA) to production"
+
       - name: Push to release branch
         run: |
-          git checkout release || git checkout -b release
+          git checkout release 2>/dev/null || git checkout -b release
           git merge --ff-only main
           git push origin release

@@ -15,7 +15,7 @@ import { FolderCreateDialog } from '~/components/dialogs/folder-create-dialog';
 import { FolderDeleteDialog } from '~/components/dialogs/folder-delete-dialog';
 import { FolderMoveDialog } from '~/components/dialogs/folder-move-dialog';
 import { FolderUpdateDialog } from '~/components/dialogs/folder-update-dialog';
-import { DocumentUploadButtonLegacy } from '~/components/general/document/document-upload-button-legacy';
+import { TemplateCreateDialog } from '~/components/dialogs/template-create-dialog';
 import { FolderCard, FolderCardEmpty } from '~/components/general/folder/folder-card';
 import { useCurrentTeam } from '~/providers/team';
 
@@ -52,10 +52,6 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
   const formatViewAllFoldersPath = () => {
     const rootPath =
       type === FolderType.DOCUMENT ? formatDocumentsPath(team.url) : formatTemplatesPath(team.url);
-
-    if (parentId) {
-      return `${rootPath}/folders?parentId=${parentId}`;
-    }
 
     return `${rootPath}/folders`;
   };
@@ -103,10 +99,9 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
         <div className="flex gap-4 sm:flex-row sm:justify-end">
           <EnvelopeUploadButton type={type} folderId={parentId || undefined} />
 
-          {/* If you delete this, delete the component as well. */}
-          {organisation.organisationClaim.flags.allowLegacyEnvelopes && (
-            <DocumentUploadButtonLegacy type={type} />
-          )}
+          {/* {type === FolderType.TEMPLATE && (
+            <TemplateCreateDialog folderId={parentId ?? undefined} />
+          )} */}
 
           <FolderCreateDialog type={type} />
         </div>
@@ -193,13 +188,13 @@ export const FolderGrid = ({ type, parentId }: FolderGridProps) => {
               </div>
             )}
 
-            {unpinnedFolders.length > 12 && (
+            {foldersData.folders.length > 12 && (
               <div className="mt-2 flex items-center justify-center">
                 <Link
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                   to={formatViewAllFoldersPath()}
                 >
-                  <Trans>View all folders</Trans>
+                  View all folders
                 </Link>
               </div>
             )}

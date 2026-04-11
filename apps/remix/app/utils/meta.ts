@@ -1,14 +1,12 @@
-import { type MessageDescriptor, i18n } from '@lingui/core';
-
 import { NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
 
-export const appMetaTags = (title?: MessageDescriptor) => {
+export const appMetaTags = (title?: string) => {
   const description =
-    'Join Documenso, the open signing infrastructure, and get a 10x better signing experience. Pricing starts at $30/mo. forever! Sign in now and enjoy a faster, smarter, and more beautiful document signing process. Integrates with your favorite tools, customizable, and expandable. Support our mission and become a part of our open-source community.';
+    '资管通合同管理平台 - 专业的电子文档签署与合同管理系统，为香港资管通提供安全、高效、合规的合同全生命周期管理服务。';
 
   return [
     {
-      title: title ? `${i18n._(title)} - Documenso` : 'Documenso',
+      title: title ? `${title} - 资管通合同管理平台` : '资管通合同管理平台',
     },
     {
       name: 'description',
@@ -17,11 +15,11 @@ export const appMetaTags = (title?: MessageDescriptor) => {
     {
       name: 'keywords',
       content:
-        'Documenso, open source, DocuSign alternative, document signing, open signing infrastructure, open-source community, fast signing, beautiful signing, smart templates',
+        '资管通, FundConnectHK, 合同管理, 文档签署, 电子合同, 合同管理系统, 文档管理, 电子签名, 香港资管通',
     },
     {
       name: 'author',
-      content: 'Documenso, Inc.',
+      content: 'FundConnectHK / 香港资管通',
     },
     {
       name: 'robots',
@@ -29,7 +27,7 @@ export const appMetaTags = (title?: MessageDescriptor) => {
     },
     {
       property: 'og:title',
-      content: 'Documenso - The Open Source DocuSign Alternative',
+      content: '资管通合同管理平台 - FundConnectHK Contract Management Platform',
     },
     {
       property: 'og:description',
@@ -49,7 +47,7 @@ export const appMetaTags = (title?: MessageDescriptor) => {
     },
     {
       name: 'twitter:site',
-      content: '@documenso',
+      content: '@FundConnectHK',
     },
     {
       name: 'twitter:description',

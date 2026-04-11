@@ -1,7 +1,6 @@
 import type { EnvelopeItem } from '@prisma/client';
 
 import { getEnvelopeItemPdfUrl } from '../utils/envelope-download';
-import { downloadFile } from './download-file';
 
 type DocumentVersion = 'original' | 'signed';
 
@@ -18,7 +17,7 @@ type DownloadPDFProps = {
   version?: DocumentVersion;
 };
 
-export const downloadPDF = async ({
+export const downloadPDF = ({
   envelopeItem,
   token,
   fileName,
@@ -31,13 +30,6 @@ export const downloadPDF = async ({
     version,
   });
 
-  const blob = await fetch(downloadUrl).then(async (res) => await res.blob());
-
-  const baseTitle = (fileName ?? 'document').replace(/\.pdf$/, '');
-  const suffix = version === 'signed' ? '_signed.pdf' : '.pdf';
-
-  downloadFile({
-    filename: `${baseTitle}${suffix}`,
-    data: blob,
-  });
+  // Open in new window/tab instead of downloading
+  window.open(downloadUrl, '_blank');
 };

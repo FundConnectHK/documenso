@@ -1,3 +1,10 @@
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import handle from 'hono-react-router-adapter/node';
+
+import server from './hono/server/router.js';
+import * as build from './index.js';
+
 /**
  * This is the main entry point for the server which will launch the RR7 application
  * and spin up auth, api, etc.
@@ -6,12 +13,7 @@
  *  This file will be copied to the build folder during build time.
  *  Running this file will not work without a build.
  */
-import { serve } from '@hono/node-server';
-import { serveStatic } from '@hono/node-server/serve-static';
-import handle from 'hono-react-router-adapter/node';
-
-import server from './hono/server/router.js';
-import * as build from './index.js';
+console.log('[main] Loading server...');
 
 server.use(
   serveStatic({
@@ -28,8 +30,12 @@ server.use(
   }),
 );
 
+console.log('[main] Creating handler...');
 const handler = handle(build, server);
 
 const port = parseInt(process.env.PORT || '3000', 10);
+console.log(`[main] Starting server on port ${port}...`);
 
-serve({ fetch: handler.fetch, port });
+serve({ fetch: handler.fetch, port, hostname: '0.0.0.0' }, (info) => {
+  console.log(`Server listening on http://${info.address}:${info.port}`);
+});

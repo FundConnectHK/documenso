@@ -22,6 +22,8 @@ export const ZUpdateEnvelopeItemsRequestSchema = z.object({
       envelopeItemId: z.string().describe('The ID of the envelope item to update.'),
       order: z.number().int().min(1).optional(),
       title: ZDocumentTitleSchema.optional(),
+      richTextContent: z.string().optional(),
+      richTextSignatureFieldId: z.number().int().optional().nullable(),
     })
     .array()
     .min(1),
@@ -33,6 +35,8 @@ export const ZUpdateEnvelopeItemsResponseSchema = z.object({
     order: true,
     title: true,
     envelopeId: true,
+    richTextContent: true,
+    richTextSignatureFieldId: true,
   }).array(),
 });
 

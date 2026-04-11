@@ -420,7 +420,7 @@ export class LocalJobProvider extends BaseJobProvider {
           return task.result as T;
         }
 
-        if (task.retried >= 3) {
+        if (task.retried >= task.maxRetries) {
           throw new BackgroundTaskExceededRetriesError('Task exceeded retries');
         }
 

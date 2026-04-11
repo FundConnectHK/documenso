@@ -1,8 +1,9 @@
-import type { DocumentDistributionMethod, DocumentSigningOrder } from '@prisma/client';
+import type { DocumentDistributionMethod, DocumentSigningOrder, Prisma } from '@prisma/client';
 import {
   DocumentSource,
   EnvelopeType,
   type Field,
+  FieldType,
   FolderType,
   type Recipient,
   RecipientRole,
@@ -17,14 +18,11 @@ import { nanoid, prefixedId } from '@documenso/lib/universal/id';
 import { prisma } from '@documenso/prisma';
 
 import { DEFAULT_DOCUMENT_DATE_FORMAT } from '../../constants/date-formats';
-import type { TEnvelopeExpirationPeriod } from '../../constants/envelope-expiration';
 import type { SupportedLanguageCodes } from '../../constants/i18n';
 import { AppError, AppErrorCode } from '../../errors/app-error';
-import { ZDefaultRecipientsSchema } from '../../types/default-recipients';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../types/document-audit-logs';
 import { ZRecipientAuthOptionsSchema } from '../../types/document-auth';
 import type { TDocumentEmailSettings } from '../../types/document-email';
-import type { TDocumentFormValues } from '../../types/document-form-values';
 import type {
   TCheckboxFieldMeta,
   TDropdownFieldMeta,
@@ -38,6 +36,7 @@ import {
   ZDropdownFieldMeta,
   ZFieldMetaSchema,
   ZRadioFieldMeta,
+  ZSignatureFieldMeta,
 } from '../../types/field-meta';
 import {
   ZWebhookDocumentSchema,
@@ -45,8 +44,9 @@ import {
 } from '../../types/webhook-payload';
 import type { ApiRequestMetadata } from '../../universal/extract-request-metadata';
 import { getFileServerSide } from '../../universal/upload/get-file.server';
-import { putNormalizedPdfFileServerSide } from '../../universal/upload/put-file.server';
+import { putPdfFileServerSide } from '../../universal/upload/put-file.server';
 import { extractDerivedDocumentMeta } from '../../utils/document';
+import { toCheckboxCustomText, toRadioCustomText } from '../../utils/fields';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import {
   createDocumentAuthOptions,
@@ -58,10 +58,8 @@ import { mapSecondaryIdToTemplateId } from '../../utils/envelope';
 import { buildTeamWhereQuery } from '../../utils/teams';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { incrementDocumentId } from '../envelope/increment-id';
-import { insertFormValuesInPdf } from '../pdf/insert-form-values-in-pdf';
 import { getTeamSettings } from '../team/get-team-settings';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
-import { getOrganisationTemplateWhereInput } from './get-organisation-template-by-id';
 
 type FinalRecipient = Pick<
   Recipient,
@@ -69,6 +67,11 @@ type FinalRecipient = Pick<
 > & {
   templateRecipientId: number;
   fields: Field[];
+};
+
+type FieldToCreatePayload = Omit<Field, 'id' | 'secondaryId' | 'fieldMeta'> & {
+  fieldMeta: Prisma.JsonValue | null;
+  displayValueForRichText?: string;
 };
 
 export type CreateDocumentFromTemplateOptions = {
@@ -84,6 +87,12 @@ export type CreateDocumentFromTemplateOptions = {
   }[];
   folderId?: string;
   prefillFields?: TFieldMetaPrefillFieldsSchema[];
+
+  /**
+   * Template field IDs (from the template) to mark as rich text signing area.
+   * Each must be a SIGNATURE type field. Each recipient can have multiple (e.g., signature and stamp).
+   */
+  richTextSigningAreaFieldIds?: number[];
 
   customDocumentData?: {
     documentDataId: string;
@@ -121,10 +130,7 @@ export type CreateDocumentFromTemplateOptions = {
     typedSignatureEnabled?: boolean;
     uploadSignatureEnabled?: boolean;
     drawSignatureEnabled?: boolean;
-    envelopeExpirationPeriod?: TEnvelopeExpirationPeriod | null;
   };
-
-  formValues?: TDocumentFormValues;
   requestMetadata: ApiRequestMetadata;
 };
 
@@ -182,12 +188,6 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
       return meta;
     })
     .with({ type: 'radio' }, (field) => {
-      if (typeof field.value !== 'string') {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Invalid value for RADIO field ${field.id}: expected string, got ${typeof field.value}`,
-        });
-      }
-
       const result = ZRadioFieldMeta.safeParse(existingMeta);
 
       if (!result.success) {
@@ -198,18 +198,33 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
 
       const radioMeta = result.data;
 
-      // Validate that the value exists in the options
-      const valueExists = radioMeta.values?.some((option) => option.value === field.value);
-
-      if (!valueExists) {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Value "${field.value}" not found in options for RADIO field ${field.id}`,
-        });
+      const useValueById = 'valueById' in field && field.valueById !== undefined;
+      if (useValueById) {
+        const optionExists = radioMeta.values?.some((option) => option.id === field.valueById);
+        if (!optionExists) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Option ID ${field.valueById} not found in RADIO field ${field.id}`,
+          });
+        }
+      } else {
+        if (typeof field.value !== 'string') {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Invalid value for RADIO field ${field.id}: expected string or valueById, got ${typeof field.value}`,
+          });
+        }
+        const valueExists = radioMeta.values?.some((option) => option.value === field.value);
+        if (!valueExists) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Value "${field.value}" not found in options for RADIO field ${field.id}`,
+          });
+        }
       }
 
       const newValues = radioMeta.values?.map((option) => ({
         ...option,
-        checked: option.value === field.value,
+        checked: useValueById
+          ? option.id === field.valueById
+          : option.value === field.value,
       }));
 
       const meta: TRadioFieldMeta = {
@@ -233,28 +248,39 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
 
       const checkboxMeta = result.data;
 
-      if (!field.value) {
-        throw new AppError(AppErrorCode.INVALID_BODY, {
-          message: `Value is required for CHECKBOX field ${field.id}`,
-        });
-      }
-
-      const fieldValue = field.value;
-
-      // Validate that all values exist in the options
-      for (const value of fieldValue) {
-        const valueExists = checkboxMeta.values?.some((option) => option.value === value);
-
-        if (!valueExists) {
+      const useValueById = 'valueById' in field && field.valueById !== undefined;
+      if (useValueById) {
+        const fieldValueById = field.valueById ?? [];
+        for (const id of fieldValueById) {
+          const optionExists = checkboxMeta.values?.some((option) => option.id === id);
+          if (!optionExists) {
+            throw new AppError(AppErrorCode.INVALID_BODY, {
+              message: `Option ID ${id} not found in CHECKBOX field ${field.id}`,
+            });
+          }
+        }
+      } else {
+        if (!field.value) {
           throw new AppError(AppErrorCode.INVALID_BODY, {
-            message: `Value "${value}" not found in options for CHECKBOX field ${field.id}`,
+            message: `Value or valueById is required for CHECKBOX field ${field.id}`,
           });
+        }
+        const fieldValue = field.value;
+        for (const value of fieldValue) {
+          const valueExists = checkboxMeta.values?.some((option) => option.value === value);
+          if (!valueExists) {
+            throw new AppError(AppErrorCode.INVALID_BODY, {
+              message: `Value "${value}" not found in options for CHECKBOX field ${field.id}`,
+            });
+          }
         }
       }
 
       const newValues = checkboxMeta.values?.map((option) => ({
         ...option,
-        checked: fieldValue.includes(option.value),
+        checked: useValueById
+          ? (field.valueById ?? []).includes(option.id)
+          : (field.value ?? []).includes(option.value),
       }));
 
       const meta: TCheckboxFieldMeta = {
@@ -310,46 +336,32 @@ export const createDocumentFromTemplate = async ({
   requestMetadata,
   folderId,
   prefillFields,
+  richTextSigningAreaFieldIds,
   attachments,
-  formValues,
 }: CreateDocumentFromTemplateOptions) => {
-  const templateInclude = {
-    recipients: {
-      include: {
-        fields: true,
-      },
-    },
-    envelopeItems: {
-      include: {
-        documentData: true,
-      },
-    },
-    documentMeta: true,
-  } as const;
-
-  const { envelopeWhereInput, team: callerTeam } = await getEnvelopeWhereInput({
+  const { envelopeWhereInput } = await getEnvelopeWhereInput({
     id,
     type: EnvelopeType.TEMPLATE,
     userId,
     teamId,
   });
 
-  const [teamTemplate, organisationTemplate] = await Promise.all([
-    prisma.envelope.findFirst({
-      where: envelopeWhereInput,
-      include: templateInclude,
-    }),
-    prisma.envelope.findFirst({
-      where: getOrganisationTemplateWhereInput({
-        id,
-        organisationId: callerTeam.organisationId,
-        teamRole: callerTeam.currentTeamRole,
-      }),
-      include: templateInclude,
-    }),
-  ]);
-
-  const template = teamTemplate ?? organisationTemplate;
+  const template = await prisma.envelope.findUnique({
+    where: envelopeWhereInput,
+    include: {
+      recipients: {
+        include: {
+          fields: true,
+        },
+      },
+      envelopeItems: {
+        include: {
+          documentData: true,
+        },
+      },
+      documentMeta: true,
+    },
+  });
 
   if (!template) {
     throw new AppError(AppErrorCode.NOT_FOUND, {
@@ -419,30 +431,6 @@ export const createDocumentFromTemplate = async ({
     };
   });
 
-  const defaultRecipients = settings.defaultRecipients
-    ? ZDefaultRecipientsSchema.parse(settings.defaultRecipients)
-    : [];
-
-  const defaultRecipientsFinal: FinalRecipient[] = defaultRecipients.map((recipient) => {
-    const authOptions = ZRecipientAuthOptionsSchema.parse({});
-
-    return {
-      templateRecipientId: -1,
-      fields: [],
-      name: recipient.name || recipient.email,
-      email: recipient.email,
-      role: recipient.role,
-      signingOrder: null,
-      authOptions: createRecipientAuthOptions({
-        accessAuth: authOptions.accessAuth,
-        actionAuth: authOptions.actionAuth,
-      }),
-      token: nanoid(),
-    };
-  });
-
-  const allFinalRecipients = [...finalRecipients, ...defaultRecipientsFinal];
-
   // Key = original envelope item ID
   // Value = duplicated envelope item ID.
   const oldEnvelopeItemToNewEnvelopeItemIdMap: Record<string, string> = {};
@@ -478,19 +466,11 @@ export const createDocumentFromTemplate = async ({
         });
       }
 
-      let buffer = await getFileServerSide(documentDataToDuplicate);
+      const buffer = await getFileServerSide(documentDataToDuplicate);
 
       const titleToUse = item.title || finalEnvelopeTitle;
 
-      if (formValues) {
-        // eslint-disable-next-line require-atomic-updates
-        buffer = await insertFormValuesInPdf({
-          pdf: Buffer.from(buffer),
-          formValues,
-        });
-      }
-
-      const duplicatedFile = await putNormalizedPdfFileServerSide({
+      const duplicatedFile = await putPdfFileServerSide({
         name: titleToUse,
         type: 'application/pdf',
         arrayBuffer: async () => Promise.resolve(buffer),
@@ -500,7 +480,7 @@ export const createDocumentFromTemplate = async ({
         data: {
           type: duplicatedFile.type,
           data: duplicatedFile.data,
-          initialData: documentDataToDuplicate.data,
+          initialData: duplicatedFile.initialData,
         },
       });
 
@@ -513,6 +493,8 @@ export const createDocumentFromTemplate = async ({
         title: titleToUse.endsWith('.pdf') ? titleToUse.slice(0, -4) : titleToUse,
         documentDataId: newDocumentData.id,
         order: item.order !== undefined ? item.order : i + 1,
+        richTextContent: item.richTextContent,
+        richTextSignatureFieldId: null,
       };
     }),
   );
@@ -538,12 +520,10 @@ export const createDocumentFromTemplate = async ({
         override?.drawSignatureEnabled ?? template.documentMeta?.drawSignatureEnabled,
       allowDictateNextSigner:
         override?.allowDictateNextSigner ?? template.documentMeta?.allowDictateNextSigner,
-      envelopeExpirationPeriod:
-        override?.envelopeExpirationPeriod ?? template.documentMeta?.envelopeExpirationPeriod,
     }),
   });
 
-  const { envelope, createdEnvelope } = await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx) => {
     const envelope = await tx.envelope.create({
       data: {
         id: prefixedId('envelope'),
@@ -556,7 +536,7 @@ export const createDocumentFromTemplate = async ({
         templateId: legacyTemplateId, // The template this envelope was created from.
         userId,
         folderId,
-        teamId,
+        teamId: template.teamId,
         title: finalEnvelopeTitle,
         envelopeItems: {
           createMany: {
@@ -570,10 +550,9 @@ export const createDocumentFromTemplate = async ({
         visibility: template.visibility || settings.documentVisibility,
         useLegacyFieldInsertion: template.useLegacyFieldInsertion ?? false,
         documentMetaId: documentMeta.id,
-        formValues: formValues ?? undefined,
         recipients: {
           createMany: {
-            data: allFinalRecipients.map((recipient) => {
+            data: finalRecipients.map((recipient) => {
               const authOptions = ZRecipientAuthOptionsSchema.parse(recipient?.authOptions);
 
               return {
@@ -611,7 +590,8 @@ export const createDocumentFromTemplate = async ({
       },
     });
 
-    let fieldsToCreate: Omit<Field, 'id' | 'secondaryId'>[] = [];
+    let fieldsToCreate: FieldToCreatePayload[] = [];
+    const templateFieldIds: number[] = [];
 
     // Get all template field IDs first so we can validate later
     const allTemplateFieldIds = finalRecipients.flatMap((recipient) =>
@@ -654,7 +634,26 @@ export const createDocumentFromTemplate = async ({
       }
     }
 
-    Object.values(allFinalRecipients).forEach(({ token, fields }) => {
+    if (richTextSigningAreaFieldIds?.length) {
+      const allTemplateFields = finalRecipients.flatMap((r) => r.fields);
+
+      for (const fieldId of richTextSigningAreaFieldIds) {
+        const templateField = allTemplateFields.find((f) => f.id === fieldId);
+        if (!templateField) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Field with ID ${fieldId} does not exist in the template`,
+          });
+        }
+        if (templateField.type !== FieldType.SIGNATURE) {
+          throw new AppError(AppErrorCode.INVALID_BODY, {
+            message: `Field ${fieldId} must be a SIGNATURE type to be used as rich text signing area`,
+          });
+        }
+      }
+
+    }
+
+    Object.values(finalRecipients).forEach(({ token, fields }) => {
       const recipient = envelope.recipients.find((recipient) => recipient.token === token);
 
       if (!recipient) {
@@ -665,7 +664,23 @@ export const createDocumentFromTemplate = async ({
         fields.map((field) => {
           const prefillField = prefillFields?.find((value) => value.id === field.id);
 
-          const payload = {
+          const isRichTextSigningArea =
+            field.type === FieldType.SIGNATURE && richTextSigningAreaFieldIds?.includes(field.id);
+
+          let fieldMeta = field.fieldMeta;
+          if (isRichTextSigningArea) {
+            const baseMeta =
+              typeof field.fieldMeta === 'object' && field.fieldMeta !== null
+                ? (field.fieldMeta as Record<string, unknown>)
+                : {};
+            fieldMeta = ZSignatureFieldMeta.parse({
+              ...baseMeta,
+              type: 'signature',
+              richTextSigningArea: true,
+            }) as typeof field.fieldMeta;
+          }
+
+          const payload: FieldToCreatePayload = {
             envelopeItemId: oldEnvelopeItemToNewEnvelopeItemIdMap[field.envelopeItemId],
             envelopeId: envelope.id,
             recipientId: recipient.id,
@@ -677,7 +692,7 @@ export const createDocumentFromTemplate = async ({
             height: field.height,
             customText: '',
             inserted: false,
-            fieldMeta: field.fieldMeta,
+            fieldMeta: fieldMeta != null ? (fieldMeta as Prisma.JsonValue) : null,
           };
 
           if (prefillField) {
@@ -702,23 +717,133 @@ export const createDocumentFromTemplate = async ({
                 );
 
                 payload.inserted = true;
+                payload.displayValueForRichText = payload.customText;
               })
               .otherwise((selector) => {
                 payload.fieldMeta = getUpdatedFieldMeta(field, selector);
+                const updatedMeta = payload.fieldMeta;
+                if (updatedMeta && typeof updatedMeta === 'object') {
+                  const meta = updatedMeta as Record<string, unknown>;
+                  if (selector.type === 'text' && typeof meta.text === 'string') {
+                    payload.customText = meta.text;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.text;
+                  } else if (selector.type === 'number' && typeof meta.value === 'string') {
+                    payload.customText = meta.value;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.value;
+                  } else if (selector.type === 'dropdown' && typeof meta.defaultValue === 'string') {
+                    payload.customText = meta.defaultValue;
+                    payload.inserted = true;
+                    payload.displayValueForRichText = meta.defaultValue;
+                  } else if (selector.type === 'radio' && Array.isArray(meta.values)) {
+                    const idx = meta.values.findIndex(
+                      (v: { checked?: boolean }) => v?.checked === true,
+                    );
+                    if (idx >= 0) {
+                      const checkedOption = meta.values[idx] as { value?: string };
+                      payload.customText = toRadioCustomText(idx);
+                      payload.inserted = true;
+                      payload.displayValueForRichText =
+                        typeof checkedOption?.value === 'string' ? checkedOption.value : '';
+                    }
+                  } else if (selector.type === 'checkbox' && Array.isArray(meta.values)) {
+                    const indices = meta.values
+                      .map((v: { checked?: boolean }, i: number) => (v?.checked ? i : -1))
+                      .filter((i) => i >= 0);
+                    if (indices.length > 0) {
+                      const checkedValues = meta.values
+                        .filter((v: { checked?: boolean }) => v?.checked)
+                        .map((v: { value?: string }) => (typeof v?.value === 'string' ? v.value : ''))
+                        .filter(Boolean)
+                        .join(', ');
+                      payload.customText = toCheckboxCustomText(indices);
+                      payload.inserted = true;
+                      payload.displayValueForRichText = checkedValues;
+                    }
+                  }
+                }
               });
           }
 
+          templateFieldIds.push(field.id);
           return payload;
         }),
       );
     });
 
-    await tx.field.createMany({
-      data: fieldsToCreate.map((field) => ({
-        ...field,
-        fieldMeta: field.fieldMeta ? ZFieldMetaSchema.parse(field.fieldMeta) : undefined,
-      })),
+    const oldFieldIdToDisplayValueMap: Record<number, string> = {};
+    fieldsToCreate.forEach((payload, index) => {
+      const oldId = templateFieldIds[index];
+      const displayValue = payload.displayValueForRichText;
+      if (oldId !== undefined && displayValue !== undefined) {
+        oldFieldIdToDisplayValueMap[oldId] = displayValue;
+      }
     });
+
+    const createdFields = await tx.field.createManyAndReturn({
+      data: fieldsToCreate.map((field) => {
+        const { displayValueForRichText: _, ...fieldData } = field;
+        return {
+          ...fieldData,
+          fieldMeta: field.fieldMeta ? ZFieldMetaSchema.parse(field.fieldMeta) : undefined,
+        };
+      }),
+    });
+
+    const oldFieldIdToNewFieldIdMap: Record<number, number> = {};
+    fieldsToCreate.forEach((payload, index) => {
+      const oldId = templateFieldIds[index];
+      const created = createdFields.find(
+        (c) =>
+          c.envelopeItemId === payload.envelopeItemId &&
+          c.recipientId === payload.recipientId &&
+          c.page === payload.page &&
+          c.positionX.toString() === payload.positionX.toString() &&
+          c.positionY.toString() === payload.positionY.toString(),
+      );
+      if (oldId !== undefined && created) {
+        oldFieldIdToNewFieldIdMap[oldId] = created.id;
+      }
+    });
+
+    const processRichTextPlaceholders = (content: string | null): string | null => {
+      if (!content) {
+        return content;
+      }
+      return content.replace(/\{\{field:(\d+)(?::(\d+))?\}\}/g, (_, oldId, optionIndex) => {
+        const oldIdNum = Number(oldId);
+        const displayValue = oldFieldIdToDisplayValueMap[oldIdNum];
+        if (displayValue !== undefined) {
+          return displayValue;
+        }
+        const newId = oldFieldIdToNewFieldIdMap[oldIdNum];
+        const idToUse = newId !== undefined ? newId : oldIdNum;
+        return optionIndex !== undefined
+          ? `{{field:${idToUse}:${optionIndex}}}`
+          : `{{field:${idToUse}}}`;
+      });
+    };
+
+    const createdEnvelopeItems = await tx.envelopeItem.findMany({
+      where: { envelopeId: envelope.id },
+      select: { id: true },
+    });
+    for (const templateItem of template.envelopeItems) {
+      const newEnvelopeItemId = oldEnvelopeItemToNewEnvelopeItemIdMap[templateItem.id];
+      const createdItem = newEnvelopeItemId
+        ? createdEnvelopeItems.find((c) => c.id === newEnvelopeItemId)
+        : undefined;
+      if (templateItem?.richTextContent && createdItem) {
+        const processed = processRichTextPlaceholders(templateItem.richTextContent);
+        if (processed !== templateItem.richTextContent) {
+          await tx.envelopeItem.update({
+            where: { id: createdItem.id },
+            data: { richTextContent: processed },
+          });
+        }
+      }
+    }
 
     await tx.documentAuditLog.create({
       data: createDocumentAuditLogData({
@@ -776,25 +901,13 @@ export const createDocumentFromTemplate = async ({
       throw new Error('Document not found');
     }
 
-    return { envelope, createdEnvelope };
-  });
-
-  // Trigger webhook outside the transaction to avoid holding the connection
-  // open during network I/O.
-  await Promise.allSettled([
-    triggerWebhook({
+    await triggerWebhook({
       event: WebhookTriggerEvents.DOCUMENT_CREATED,
       data: ZWebhookDocumentSchema.parse(mapEnvelopeToWebhookDocumentPayload(createdEnvelope)),
       userId,
       teamId,
-    }),
-    triggerWebhook({
-      event: WebhookTriggerEvents.TEMPLATE_USED,
-      data: ZWebhookDocumentSchema.parse(mapEnvelopeToWebhookDocumentPayload(createdEnvelope)),
-      userId,
-      teamId,
-    }),
-  ]);
+    });
 
-  return envelope;
+    return envelope;
+  });
 };

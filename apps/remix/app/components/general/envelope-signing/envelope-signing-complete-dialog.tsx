@@ -1,22 +1,32 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
-import { useLingui } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { FieldType } from '@prisma/client';
 import { useNavigate, useRevalidator, useSearchParams } from 'react-router';
 
 import { useAnalytics } from '@documenso/lib/client-only/hooks/use-analytics';
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
-import { PDF_VIEWER_CONTENT_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { isBase64Image } from '@documenso/lib/constants/signatures';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
+import { Button } from '@documenso/ui/primitives/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@documenso/ui/primitives/dialog';
+import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
 import { DocumentSigningCompleteDialog } from '../document-signing/document-signing-complete-dialog';
+import { useOptionalDocumentSigningReadProgress } from '../document-signing/document-signing-read-progress-provider';
 import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
 
 export const EnvelopeSignerCompleteDialog = () => {
@@ -28,6 +38,7 @@ export const EnvelopeSignerCompleteDialog = () => {
   const { revalidate } = useRevalidator();
 
   const [searchParams] = useSearchParams();
+  const [showIncompleteFieldsModal, setShowIncompleteFieldsModal] = useState(false);
 
   const {
     isDirectTemplate,
@@ -41,6 +52,7 @@ export const EnvelopeSignerCompleteDialog = () => {
   } = useRequiredEnvelopeSigningContext();
 
   const { currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
+  const readProgress = useOptionalDocumentSigningReadProgress();
 
   const { onDocumentCompleted, onDocumentError } = useEmbedSigningContext() || {};
 
@@ -58,45 +70,28 @@ export const EnvelopeSignerCompleteDialog = () => {
       return;
     }
 
-    const isEnvelopeItemSwitch = nextField.envelopeItemId !== currentEnvelopeItem?.id;
-
-    if (isEnvelopeItemSwitch) {
+    if (nextField.envelopeItemId !== currentEnvelopeItem?.id) {
       setCurrentEnvelopeItem(nextField.envelopeItemId);
     }
 
+    const fieldTooltip = document.querySelector(`#field-tooltip`);
+
+    if (fieldTooltip) {
+      fieldTooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     setShowPendingFieldTooltip(true);
-
-    setTimeout(
-      () => {
-        const fieldTooltip = document.querySelector(`#field-tooltip`);
-
-        if (fieldTooltip) {
-          fieldTooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          // Tooltip not in DOM (page virtualized away) — signal the PDF viewer
-          // to scroll to the correct page via the data attribute.
-          const pdfContent = document.querySelector(PDF_VIEWER_CONTENT_SELECTOR);
-
-          if (pdfContent) {
-            pdfContent.setAttribute('data-scroll-to-page', String(nextField.page));
-          }
-        }
-      },
-      isEnvelopeItemSwitch ? 150 : 50,
-    );
   };
 
   const handleOnCompleteClick = async (
     nextSigner?: { name: string; email: string },
     accessAuthOptions?: TRecipientAccessAuth,
-    recipientDetails?: { name: string; email: string },
   ) => {
     try {
       await completeDocument({
         token: recipient.token,
         documentId: mapSecondaryIdToDocumentId(envelope.secondaryId),
         accessAuthOptions,
-        recipientOverride: recipientDetails,
         ...(nextSigner?.email && nextSigner?.name ? { nextSigner } : {}),
       });
 
@@ -127,7 +122,10 @@ export const EnvelopeSignerCompleteDialog = () => {
     } catch (err) {
       const error = AppError.parseError(err);
 
-      if (error.code !== AppErrorCode.TWO_FACTOR_AUTH_FAILED) {
+      if (
+        error.code !== AppErrorCode.UNSIGNED_FIELDS &&
+        error.code !== AppErrorCode.TWO_FACTOR_AUTH_FAILED
+      ) {
         toast({
           title: t`Something went wrong`,
           description: t`We were unable to submit this document at this time. Please try again later.`,
@@ -216,48 +214,90 @@ export const EnvelopeSignerCompleteDialog = () => {
     }
   };
 
-  const recipientPayload = useMemo(() => {
+  const directTemplatePayload = useMemo(() => {
     if (!isDirectTemplate) {
-      return {
-        name:
-          recipient.name ||
-          fullName ||
-          recipient.fields.find((field) => field.type === FieldType.NAME)?.customText ||
-          '',
-        email:
-          recipient.email ||
-          email ||
-          recipient.fields.find((field) => field.type === FieldType.EMAIL)?.customText ||
-          '',
-      };
+      return;
     }
 
     return {
       name: fullName,
       email: email,
     };
-  }, [email, fullName, isDirectTemplate, recipient.email, recipient.name, recipient.fields]);
+  }, [email, fullName, isDirectTemplate]);
+
+  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
+
+  const incompleteFieldLabels = useMemo(
+    () =>
+      recipientFieldsRemaining.map((field) => {
+        const typeLabel = t(FRIENDLY_FIELD_TYPE[field.type]);
+        return field.customText ? `${typeLabel} (${field.customText})` : typeLabel;
+      }),
+    [recipientFieldsRemaining, t],
+  );
 
   return (
-    <DocumentSigningCompleteDialog
-      isSubmitting={isPending}
-      recipientPayload={recipientPayload}
-      onSignatureComplete={
-        isDirectTemplate ? handleDirectTemplateCompleteClick : handleOnCompleteClick
-      }
-      documentTitle={envelope.title}
-      fields={recipientFieldsRemaining}
-      fieldsValidated={handleOnNextFieldClick}
-      recipient={recipient}
-      allowDictateNextSigner={Boolean(
-        nextRecipient && envelope.documentMeta.allowDictateNextSigner,
-      )}
-      disableNameInput={!isDirectTemplate && recipient.name !== ''}
-      defaultNextSigner={
-        nextRecipient ? { name: nextRecipient.name, email: nextRecipient.email } : undefined
-      }
-      buttonSize="sm"
-      position="center"
-    />
+    <>
+      <DocumentSigningCompleteDialog
+        isSubmitting={isPending}
+        directTemplatePayload={directTemplatePayload}
+        onSignatureComplete={
+          isDirectTemplate ? handleDirectTemplateCompleteClick : handleOnCompleteClick
+        }
+        documentTitle={envelope.title}
+        fields={recipientFieldsRemaining}
+        fieldsValidated={handleOnNextFieldClick}
+        recipient={recipient}
+        allowDictateNextSigner={Boolean(
+          nextRecipient && envelope.documentMeta.allowDictateNextSigner,
+        )}
+        defaultNextSigner={
+          nextRecipient ? { name: nextRecipient.name, email: nextRecipient.email } : undefined
+        }
+        buttonSize="sm"
+        position="center"
+        forceCompleteButton={isRichTextSigningMode}
+        onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
+        requireReadToBottom={Boolean(readProgress?.requiresScroll)}
+        hasReadToBottom={readProgress?.hasReadToBottom ?? true}
+        onReadCompleteRequired={() => {
+          toast({
+            title: t`提示`,
+            description: t`確認前請先閱讀完合同並簽署`,
+            variant: 'destructive',
+          });
+        }}
+      />
+
+      <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>
+        <DialogContent position="center">
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>有未完成的必填欄位</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <div className="space-y-2">
+                <p>
+                  <Trans>以下欄位尚未填寫：</Trans>
+                </p>
+                <ul className="list-inside list-disc text-sm">
+                  {incompleteFieldLabels.map((label, i) => (
+                    <li key={i}>{label}</li>
+                  ))}
+                </ul>
+                <p className="pt-2 font-medium">
+                  <Trans>請聯繫管理員填入</Trans>
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowIncompleteFieldsModal(false)}>
+              <Trans>確定</Trans>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

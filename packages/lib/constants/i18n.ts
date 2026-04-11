@@ -1,9 +1,21 @@
-import type { MessageDescriptor } from '@lingui/core';
-import { msg } from '@lingui/core/macro';
+import { z } from 'zod';
 
-import { SUPPORTED_LANGUAGE_CODES, type SupportedLanguageCodes } from './locales';
+export const SUPPORTED_LANGUAGE_CODES = [
+  'de',
+  'en',
+  'fr',
+  'es',
+  'it',
+  'pl',
+  'pt-BR',
+  'ja',
+  'ko',
+  'zh',
+] as const;
 
-export * from './locales';
+export const ZSupportedLanguageCodeSchema = z.enum(SUPPORTED_LANGUAGE_CODES).catch('en');
+
+export type SupportedLanguageCodes = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 export type I18nLocaleData = {
   /**
@@ -17,55 +29,57 @@ export type I18nLocaleData = {
   locales: string[];
 };
 
+export const APP_I18N_OPTIONS = {
+  supportedLangs: SUPPORTED_LANGUAGE_CODES,
+  sourceLang: 'en',
+  defaultLocale: 'zh-Hant',
+} as const;
+
 type SupportedLanguage = {
+  full: string;
   short: string;
-  full: MessageDescriptor;
 };
 
 export const SUPPORTED_LANGUAGES: Record<string, SupportedLanguage> = {
   de: {
+    full: 'German',
     short: 'de',
-    full: msg`German`,
   },
   en: {
+    full: 'English',
     short: 'en',
-    full: msg`English`,
   },
   fr: {
+    full: 'French',
     short: 'fr',
-    full: msg`French`,
   },
   es: {
+    full: 'Spanish',
     short: 'es',
-    full: msg`Spanish`,
   },
   it: {
+    full: 'Italian',
     short: 'it',
-    full: msg`Italian`,
-  },
-  nl: {
-    short: 'nl',
-    full: msg`Dutch`,
   },
   pl: {
     short: 'pl',
-    full: msg`Polish`,
+    full: 'Polish',
   },
   'pt-BR': {
     short: 'pt-BR',
-    full: msg`Portuguese (Brazil)`,
+    full: 'Portuguese (Brazil)',
   },
   ja: {
     short: 'ja',
-    full: msg`Japanese`,
+    full: 'Japanese',
   },
   ko: {
     short: 'ko',
-    full: msg`Korean`,
+    full: 'Korean',
   },
   zh: {
     short: 'zh',
-    full: msg`Chinese`,
+    full: 'Chinese',
   },
 } satisfies Record<SupportedLanguageCodes, SupportedLanguage>;
 

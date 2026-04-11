@@ -2,19 +2,10 @@ import { useState } from 'react';
 
 import { Trans } from '@lingui/react/macro';
 import type { Recipient, TemplateDirectLink } from '@prisma/client';
-import {
-  Copy,
-  Edit,
-  FolderIcon,
-  MoreHorizontal,
-  Pencil,
-  Share2Icon,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Copy, Edit, FolderIcon, MoreHorizontal, Share2Icon, Upload } from 'lucide-react';
 import { Link } from 'react-router';
 
-import { trpc as trpcReact } from '@documenso/trpc/react';
+import { useSession } from '@documenso/lib/client-only/providers/session';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@documenso/ui/primitives/dropdown-menu';
 
-import { EnvelopeRenameDialog } from '../dialogs/envelope-rename-dialog';
 import { TemplateBulkSendDialog } from '../dialogs/template-bulk-send-dialog';
 import { TemplateDeleteDialog } from '../dialogs/template-delete-dialog';
 import { TemplateDirectLinkDialog } from '../dialogs/template-direct-link-dialog';
@@ -52,15 +42,14 @@ export const TemplatesTableActionDropdown = ({
   teamId,
   onDelete,
 }: TemplatesTableActionDropdownProps) => {
-  const trpcUtils = trpcReact.useUtils();
+  const { user } = useSession();
 
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDuplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
-  const [isRenameDialogOpen, setRenameDialogOpen] = useState(false);
   const [isMoveToFolderDialogOpen, setMoveToFolderDialogOpen] = useState(false);
 
+  const isOwner = row.userId === user.id;
   const isTeamTemplate = row.teamId === teamId;
-  const canMutate = isTeamTemplate;
 
   const formatPath = `${templateRootPath}/${row.envelopeId}/edit`;
 
@@ -73,64 +62,59 @@ export const TemplatesTableActionDropdown = ({
       <DropdownMenuContent className="w-52" align="start" forceMount>
         <DropdownMenuLabel>Action</DropdownMenuLabel>
 
-        <DropdownMenuItem disabled={!canMutate} asChild>
+        <DropdownMenuItem disabled={!isOwner && !isTeamTemplate} asChild>
           <Link to={formatPath}>
             <Edit className="mr-2 h-4 w-4" />
             <Trans>Edit</Trans>
           </Link>
         </DropdownMenuItem>
 
-        {canMutate && (
-          <DropdownMenuItem onClick={() => setRenameDialogOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            <Trans>Rename</Trans>
-          </DropdownMenuItem>
-        )}
-
-        <DropdownMenuItem disabled={!canMutate} onClick={() => setDuplicateDialogOpen(true)}>
+        <DropdownMenuItem
+          disabled={!isOwner && !isTeamTemplate}
+          onClick={() => setDuplicateDialogOpen(true)}
+        >
           <Copy className="mr-2 h-4 w-4" />
           <Trans>Duplicate</Trans>
         </DropdownMenuItem>
 
-        {canMutate && (
-          <TemplateDirectLinkDialog
-            templateId={row.id}
-            recipients={row.recipients}
-            directLink={row.directLink}
-            trigger={
-              <div
-                data-testid="template-direct-link"
-                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Share2Icon className="mr-2 h-4 w-4" />
-                <Trans>Direct link</Trans>
-              </div>
-            }
-          />
-        )}
+        <TemplateDirectLinkDialog
+          templateId={row.id}
+          recipients={row.recipients}
+          directLink={row.directLink}
+          trigger={
+            <div
+              data-testid="template-direct-link"
+              className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Share2Icon className="mr-2 h-4 w-4" />
+              <Trans>Direct link</Trans>
+            </div>
+          }
+        />
 
-        <DropdownMenuItem disabled={!canMutate} onClick={() => setMoveToFolderDialogOpen(true)}>
+        <DropdownMenuItem onClick={() => setMoveToFolderDialogOpen(true)}>
           <FolderIcon className="mr-2 h-4 w-4" />
           <Trans>Move to Folder</Trans>
         </DropdownMenuItem>
 
-        {canMutate && (
-          <TemplateBulkSendDialog
-            templateId={row.id}
-            recipients={row.recipients}
-            trigger={
-              <div className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                <Upload className="mr-2 h-4 w-4" />
-                <Trans>Bulk Send via CSV</Trans>
-              </div>
-            }
-          />
-        )}
+        <TemplateBulkSendDialog
+          templateId={row.id}
+          recipients={row.recipients}
+          trigger={
+            <div className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+              <Upload className="mr-2 h-4 w-4" />
+              <Trans>Bulk Send via CSV</Trans>
+            </div>
+          }
+        />
 
-        <DropdownMenuItem disabled={!canMutate} onClick={() => setDeleteDialogOpen(true)}>
+        {/* <DropdownMenuItem
+          disabled={!isOwner && !isTeamTemplate}
+          onClick={() => setDeleteDialogOpen(true)}
+        >
           <Trash2 className="mr-2 h-4 w-4" />
           <Trans>Delete</Trans>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
       </DropdownMenuContent>
 
       <TemplateDuplicateDialog
@@ -152,17 +136,6 @@ export const TemplatesTableActionDropdown = ({
         isOpen={isMoveToFolderDialogOpen}
         onOpenChange={setMoveToFolderDialogOpen}
         currentFolderId={row.folderId}
-      />
-
-      <EnvelopeRenameDialog
-        id={row.envelopeId}
-        initialTitle={row.title}
-        open={isRenameDialogOpen}
-        onOpenChange={setRenameDialogOpen}
-        envelopeType="template"
-        onSuccess={async () => {
-          await trpcUtils.template.findTemplates.invalidate();
-        }}
       />
     </DropdownMenu>
   );

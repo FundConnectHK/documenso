@@ -1,6 +1,7 @@
 import { defaultOptions as devServerDefaults } from '@hono/vite-dev-server';
 import { lingui } from '@lingui/vite-plugin';
 import { reactRouter } from '@react-router/dev/vite';
+import legacy from '@vitejs/plugin-legacy';
 import autoprefixer from 'autoprefixer';
 import serverAdapter from 'hono-react-router-adapter/vite';
 import { createRequire } from 'node:module';
@@ -15,6 +16,7 @@ const require = createRequire(import.meta.url);
 
 const pdfjsDistPath = path.dirname(require.resolve('pdfjs-dist/package.json'));
 const cMapsDir = normalizePath(path.join(pdfjsDistPath, 'cmaps'));
+const pdfWorkerPath = normalizePath(path.join(pdfjsDistPath, 'legacy/build/pdf.worker.min.mjs'));
 
 /**
  * Note: We load the env variables externally so we can have runtime enviroment variables
@@ -30,13 +32,22 @@ export default defineConfig({
   },
   server: {
     port: parseInt(process.env.PORT || '3000', 10),
+    host: true,
     strictPort: true,
   },
   plugins: [
+    legacy({
+      targets: ['Android >= 8', 'Chrome >= 70'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+    }),
     viteStaticCopy({
       targets: [
         {
           src: cMapsDir,
+          dest: 'static',
+        },
+        {
+          src: pdfWorkerPath,
           dest: 'static',
         },
       ],
@@ -111,6 +122,7 @@ export default defineConfig({
    * See rollup.config.mjs which is used for that.
    */
   build: {
+    polyfillModulePreload: false,
     rollupOptions: {
       external: [
         '@napi-rs/canvas',

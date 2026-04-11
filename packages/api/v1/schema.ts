@@ -374,6 +374,12 @@ export const ZGenerateDocumentFromTemplateMutationSchema = z.object({
     .optional(),
   formValues: z.record(z.string(), z.union([z.string(), z.boolean(), z.number()])).optional(),
   prefillFields: z.array(ZFieldMetaPrefillFieldsSchema).optional(),
+  richTextSigningAreaFieldIds: z
+    .array(z.number())
+    .describe(
+      'Template field IDs to mark as rich text signing area. Each must be a SIGNATURE type field. Each recipient can have multiple (e.g., signature and stamp).',
+    )
+    .optional(),
 });
 
 export type TGenerateDocumentFromTemplateMutationSchema = z.infer<

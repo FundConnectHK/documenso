@@ -67,6 +67,11 @@ export const SignaturePadDraw = ({
 
   const [selectedColor, setSelectedColor] = useState('black');
 
+  /** Use ref for current line during drawing to avoid stale closure - prevents stuttering */
+  const $currentLine = useRef<Point[]>([]);
+  const $lines = useRef<Point[][]>([]);
+  $lines.current = lines;
+
   const perfectFreehandOptions = useMemo(() => {
     const size = $el.current ? Math.min($el.current.height, $el.current.width) * 0.03 : 10;
 

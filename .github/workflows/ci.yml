@@ -2,9 +2,11 @@ name: 'Continuous Integration'
 
 on:
   workflow_call:
-  push:
-    branches: ['main']
+  # PR 时：运行 CI 验证（包含 Docker 构建校验）
   pull_request:
+    branches: ['main']
+  # push 到 main 时：只跑 App 构建，Docker 构建由 cd.yml 负责
+  push:
     branches: ['main']
 
 concurrency:
@@ -29,9 +31,12 @@ jobs:
       - name: Build app
         run: npm run build
 
+  # 仅在 PR 时验证 Docker 镜像能否成功构建（不推送）
+  # push 到 main 后真正的构建与推送由 cd.yml 完成
   build_docker:
-    name: Build Docker Image
+    name: Build Docker Image (PR only)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

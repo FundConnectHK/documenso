@@ -50,7 +50,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   let lang: SupportedLanguageCodes = await langCookie.parse(cookieHeader);
 
-  if (!APP_I18N_OPTIONS.supportedLangs.includes(lang)) {
+  // Force Chinese language for recipient pages (sign/complete)
+  const url = new URL(request.url);
+  if (url.pathname.includes('/sign/')) {
+    lang = 'zh';
+  } else if (!APP_I18N_OPTIONS.supportedLangs.includes(lang)) {
     lang = extractLocaleData({ headers: request.headers }).lang;
   }
 

@@ -14,10 +14,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { match } from 'ts-pattern';
 
 import { usePageRenderer } from '@documenso/lib/client-only/hooks/use-page-renderer';
-import {
-  type PageRenderData,
-  useCurrentEnvelopeRender,
-} from '@documenso/lib/client-only/providers/envelope-render-provider';
+import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
 import { useOptionalSession } from '@documenso/lib/client-only/providers/session';
 import { DIRECT_TEMPLATE_RECIPIENT_EMAIL } from '@documenso/lib/constants/direct-templates';
 import { isBase64Image } from '@documenso/lib/constants/signatures';
@@ -32,6 +29,7 @@ import { extractInitials } from '@documenso/lib/utils/recipient-formatter';
 import type { TSignEnvelopeFieldValue } from '@documenso/trpc/server/envelope-router/sign-envelope-field.types';
 import { EnvelopeRecipientFieldTooltip } from '@documenso/ui/components/document/envelope-recipient-field-tooltip';
 import { EnvelopeFieldToolTip } from '@documenso/ui/components/field/envelope-field-tooltip';
+import type { TRecipientColor } from '@documenso/ui/lib/recipient-colors';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
@@ -51,7 +49,7 @@ type GenericLocalField = TEnvelope['fields'][number] & {
   recipient: Pick<Recipient, 'id' | 'name' | 'email' | 'signingStatus'>;
 };
 
-export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderData }) => {
+export default function EnvelopeSignerPageRenderer() {
   const { t, i18n } = useLingui();
   const { currentEnvelopeItem, setRenderError } = useCurrentEnvelopeRender();
   const { sessionData } = useOptionalSession();
@@ -79,12 +77,17 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
 
   const { onFieldSigned, onFieldUnsigned } = useEmbedSigningContext() || {};
 
-  const { stage, pageLayer, konvaContainer, unscaledViewport } = usePageRenderer(
-    ({ stage, pageLayer }) => createPageCanvas(stage, pageLayer),
-    pageData,
-  );
+  const {
+    stage,
+    pageLayer,
+    canvasElement,
+    konvaContainer,
+    pageContext,
+    scaledViewport,
+    unscaledViewport,
+  } = usePageRenderer(({ stage, pageLayer }) => createPageCanvas(stage, pageLayer));
 
-  const { scale, pageNumber } = pageData;
+  const { _className, scale } = pageContext;
 
   const { envelope } = envelopeData;
 
@@ -96,9 +99,10 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
     }
 
     return fieldsToRender.filter(
-      (field) => field.page === pageNumber && field.envelopeItemId === currentEnvelopeItem?.id,
+      (field) =>
+        field.page === pageContext.pageNumber && field.envelopeItemId === currentEnvelopeItem?.id,
     );
-  }, [recipientFields, selectedAssistantRecipientFields, pageNumber, currentEnvelopeItem?.id]);
+  }, [recipientFields, selectedAssistantRecipientFields, pageContext.pageNumber]);
 
   /**
    * Returns fields that have been fully signed by other recipients for this specific
@@ -113,7 +117,7 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
       return recipient.fields
         .filter(
           (field) =>
-            field.page === pageNumber &&
+            field.page === pageContext.pageNumber &&
             field.envelopeItemId === currentEnvelopeItem?.id &&
             (field.inserted || field.fieldMeta?.readOnly),
         )
@@ -128,7 +132,7 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
           },
         }));
     });
-  }, [envelope.recipients, pageNumber, currentEnvelopeItem?.id]);
+  }, [envelope.recipients, pageContext.pageNumber]);
 
   const unsafeRenderFieldOnLayer = (unparsedField: Field & { signature?: Signature | null }) => {
     if (!pageLayer.current) {
@@ -138,11 +142,13 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
 
     const fieldToRender = ZFullFieldSchema.parse(unparsedField);
 
-    const color = fieldToRender.fieldMeta?.readOnly
-      ? 'readOnly'
-      : showPendingFieldTooltip && isFieldUnsignedAndRequired(fieldToRender)
-        ? 'orange'
-        : 'green';
+    let color: TRecipientColor = 'green';
+
+    if (fieldToRender.fieldMeta?.readOnly) {
+      color = 'readOnly';
+    } else if (showPendingFieldTooltip && isFieldUnsignedAndRequired(fieldToRender)) {
+      color = 'orange';
+    }
 
     const { fieldGroup } = renderField({
       scale,
@@ -368,11 +374,9 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
         .with({ type: FieldType.SIGNATURE }, (field) => {
           handleSignatureFieldClick({
             field,
-            fullName,
-            signature,
-            typedSignatureEnabled: envelope.documentMeta.typedSignatureEnabled,
-            uploadSignatureEnabled: envelope.documentMeta.uploadSignatureEnabled,
-            drawSignatureEnabled: envelope.documentMeta.drawSignatureEnabled,
+            typedSignatureEnabled: envelope.documentMeta?.typedSignatureEnabled ?? true,
+            uploadSignatureEnabled: envelope.documentMeta?.uploadSignatureEnabled ?? true,
+            drawSignatureEnabled: envelope.documentMeta?.drawSignatureEnabled ?? true,
           })
             .then(async (payload) => {
               if (payload) {
@@ -528,11 +532,14 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
   }
 
   return (
-    <>
+    <div
+      className="relative w-full"
+      key={`${currentEnvelopeItem.id}-renderer-${pageContext.pageNumber}`}
+    >
       {showPendingFieldTooltip &&
         recipientFieldsRemaining.length > 0 &&
         recipientFieldsRemaining[0]?.envelopeItemId === currentEnvelopeItem?.id &&
-        recipientFieldsRemaining[0]?.page === pageNumber && (
+        recipientFieldsRemaining[0]?.page === pageContext.pageNumber && (
           <EnvelopeFieldToolTip
             key={recipientFieldsRemaining[0].id}
             field={recipientFieldsRemaining[0]}
@@ -553,6 +560,14 @@ export const EnvelopeSignerPageRenderer = ({ pageData }: { pageData: PageRenderD
 
       {/* The element Konva will inject it's canvas into. */}
       <div className="konva-container absolute inset-0 z-10 w-full" ref={konvaContainer}></div>
-    </>
+
+      {/* Canvas the PDF will be rendered on. */}
+      <canvas
+        className={`${_className}__canvas z-0`}
+        ref={canvasElement}
+        height={scaledViewport.height}
+        width={scaledViewport.width}
+      />
+    </div>
   );
-};
+}

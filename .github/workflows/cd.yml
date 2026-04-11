@@ -1,0 +1,191 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main # → Staging 环境
+      - release # → Production 环境
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GAR_REGION: europe-west1
+  GAR_REPOSITORY: services
+  IMAGE_NAME: contract-service
+
+jobs:
+  # ─── 判断目标环境 ────────────────────────────────────────────────
+  setup:
+    name: Setup environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.vars.outputs.environment }}
+      cloud_run_service: ${{ steps.vars.outputs.cloud_run_service }}
+      image: ${{ steps.vars.outputs.image }}
+    steps:
+      - name: Determine deployment target
+        id: vars
+        run: |
+          if [ "${{ github.ref_name }}" == "release" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "cloud_run_service=contract-service-prod" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "cloud_run_service=contract-service-staging" >> $GITHUB_OUTPUT
+          fi
+
+          IMAGE="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+  # ─── 构建并推送镜像到 Artifact Registry ─────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ needs.setup.outputs.image }}"
+          ENV_TAG="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.environment }}-latest"
+
+          docker build \
+            -f ./docker/Dockerfile \
+            --progress=plain \
+            -t "$IMAGE" \
+            -t "$ENV_TAG" \
+            .
+
+          docker push "$IMAGE"
+          docker push "$ENV_TAG"
+
+  # ─── 部署到 Staging（main 分支）────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [setup, build-and-push]
+    if: needs.setup.outputs.environment == 'staging'
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # 密钥在 GitHub → Settings → Environments → staging 里配置（与 production 同名、值不同）
+      # 可选：在 GCP Secret Manager 配好后，把下面 env_vars 改成 secrets: ENV=secret-name:latest
+      - name: Deploy to Cloud Run (Staging)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: contract-service-staging
+          region: ${{ env.GAR_REGION }}
+          image: ${{ needs.setup.outputs.image }}
+          flags: >-
+            --allow-unauthenticated
+            --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-staging
+          env_vars: |
+            NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
+            NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
+            NEXT_PRIVATE_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DATABASE_URL }}
+            NEXT_PRIVATE_DIRECT_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DIRECT_DATABASE_URL }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            NEXT_PRIVATE_ENCRYPTION_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_KEY }}
+            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY }}
+            NEXT_PRIVATE_SMTP_TRANSPORT=${{ secrets.NEXT_PRIVATE_SMTP_TRANSPORT }}
+            NEXT_PRIVATE_SMTP_HOST=${{ secrets.NEXT_PRIVATE_SMTP_HOST }}
+            NEXT_PRIVATE_SMTP_PORT=${{ secrets.NEXT_PRIVATE_SMTP_PORT }}
+            NEXT_PRIVATE_SMTP_USERNAME=${{ secrets.NEXT_PRIVATE_SMTP_USERNAME }}
+            NEXT_PRIVATE_SMTP_PASSWORD=${{ secrets.NEXT_PRIVATE_SMTP_PASSWORD }}
+            NEXT_PRIVATE_SMTP_FROM_NAME=${{ secrets.NEXT_PRIVATE_SMTP_FROM_NAME }}
+            NEXT_PRIVATE_SMTP_FROM_ADDRESS=${{ secrets.NEXT_PRIVATE_SMTP_FROM_ADDRESS }}
+            NEXT_PUBLIC_UPLOAD_TRANSPORT=${{ secrets.NEXT_PUBLIC_UPLOAD_TRANSPORT }}
+            NEXT_PRIVATE_UPLOAD_ENDPOINT=${{ secrets.NEXT_PRIVATE_UPLOAD_ENDPOINT }}
+            NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE=${{ secrets.NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE }}
+            NEXT_PRIVATE_UPLOAD_REGION=${{ secrets.NEXT_PRIVATE_UPLOAD_REGION }}
+            NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
+            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
+            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
+
+      - name: Show Staging URL
+        run: echo "Staging deployed to ${{ steps.deploy.outputs.url }}"
+
+  # ─── 部署到 Production（release 分支）──────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [setup, build-and-push]
+    if: needs.setup.outputs.environment == 'production'
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run (Production)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: contract-service-prod
+          region: ${{ env.GAR_REGION }}
+          image: ${{ needs.setup.outputs.image }}
+          flags: >-
+            --allow-unauthenticated
+            --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-prod
+          env_vars: |
+            NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
+            NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
+            NEXT_PRIVATE_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DATABASE_URL }}
+            NEXT_PRIVATE_DIRECT_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DIRECT_DATABASE_URL }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            NEXT_PRIVATE_ENCRYPTION_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_KEY }}
+            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY }}
+            NEXT_PRIVATE_SMTP_TRANSPORT=${{ secrets.NEXT_PRIVATE_SMTP_TRANSPORT }}
+            NEXT_PRIVATE_SMTP_HOST=${{ secrets.NEXT_PRIVATE_SMTP_HOST }}
+            NEXT_PRIVATE_SMTP_PORT=${{ secrets.NEXT_PRIVATE_SMTP_PORT }}
+            NEXT_PRIVATE_SMTP_USERNAME=${{ secrets.NEXT_PRIVATE_SMTP_USERNAME }}
+            NEXT_PRIVATE_SMTP_PASSWORD=${{ secrets.NEXT_PRIVATE_SMTP_PASSWORD }}
+            NEXT_PRIVATE_SMTP_FROM_NAME=${{ secrets.NEXT_PRIVATE_SMTP_FROM_NAME }}
+            NEXT_PRIVATE_SMTP_FROM_ADDRESS=${{ secrets.NEXT_PRIVATE_SMTP_FROM_ADDRESS }}
+            NEXT_PUBLIC_UPLOAD_TRANSPORT=${{ secrets.NEXT_PUBLIC_UPLOAD_TRANSPORT }}
+            NEXT_PRIVATE_UPLOAD_ENDPOINT=${{ secrets.NEXT_PRIVATE_UPLOAD_ENDPOINT }}
+            NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE=${{ secrets.NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE }}
+            NEXT_PRIVATE_UPLOAD_REGION=${{ secrets.NEXT_PRIVATE_UPLOAD_REGION }}
+            NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
+            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
+            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
+
+      - name: Show Production URL
+        run: echo "Production deployed to ${{ steps.deploy.outputs.url }}"

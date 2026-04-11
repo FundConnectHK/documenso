@@ -18,16 +18,16 @@ export type OrganisationLeaveEmailProps = {
 
 export const OrganisationLeaveEmailTemplate = ({
   assetBaseUrl = 'http://localhost:3002',
-  baseUrl = 'https://documenso.com',
+  baseUrl = 'https://contract.fundconnecthk.com',
   memberName = 'John Doe',
-  memberEmail = 'johndoe@documenso.com',
+  memberEmail = 'example@fundconnecthk.com',
   organisationName = 'Organisation Name',
   organisationUrl = 'demo',
 }: OrganisationLeaveEmailProps) => {
   const { _ } = useLingui();
   const branding = useBranding();
 
-  const previewText = msg`A member has left your organisation on Documenso`;
+  const previewText = msg`有成員已離開您的組織 - 香港資管通 FundConnectHK`;
 
   return (
     <Html>
@@ -57,7 +57,7 @@ export const OrganisationLeaveEmailTemplate = ({
 
             <Section className="p-2 text-slate-500">
               <Text className="text-center text-lg font-medium text-black">
-                <Trans>A member has left your organisation {organisationName}</Trans>
+                <Trans>有成員已離開您的組織 {organisationName}</Trans>
               </Text>
 
               <div className="mx-auto my-2 w-fit rounded-lg bg-gray-50 px-4 py-2 text-base font-medium text-slate-600">

@@ -1,4 +1,4 @@
-name: documenso-production
+name: fundconnecthk-contract-production
 
 services:
   database:
@@ -13,14 +13,26 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - database:/var/lib/postgresql/data
+      - /var/lib/fundconnecthk/postgres:/var/lib/postgresql/data
 
-  documenso:
-    image: documenso/documenso:latest
+  mailserver:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    command: ['--smtp-auth-allow-insecure']
+    ports:
+      - '8025:8025' # Web UI: http://服务器IP:8025
+      - '1025:1025' # SMTP 端口
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INVALID_HELO: 1
+
+  fundconnecthk-contract:
+    image: fundconnecthk:latest
     depends_on:
       database:
         condition: service_healthy
     environment:
+      - NODE_ENV=production
       - PORT=${PORT:-3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?err}
       - NEXT_PRIVATE_ENCRYPTION_KEY=${NEXT_PRIVATE_ENCRYPTION_KEY:?err}
@@ -63,10 +75,10 @@ services:
       - NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=${NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH:-/opt/documenso/cert.p12}
       - NEXT_PRIVATE_SIGNING_PASSPHRASE=${NEXT_PRIVATE_SIGNING_PASSPHRASE}
       - NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS=${NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS}
-    ports:
-      - ${PORT:-3000}:${PORT:-3000}
-    volumes:
-      - /opt/documenso/cert.p12:/opt/documenso/cert.p12:ro
+      - NEXT_PRIVATE_JOBS_PROVIDER=${NEXT_PRIVATE_JOBS_PROVIDER:-local}
 
-volumes:
-  database:
+    ports:
+      - '3000:3000'
+
+    volumes:
+      - /var/lib/fundconnecthk/cert/cert.p12:/var/lib/fundconnecthk/cert/cert.p12:ro

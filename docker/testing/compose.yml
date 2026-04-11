@@ -19,7 +19,7 @@ services:
     image: inbucket/inbucket
     ports:
       - 9000:9000
-      - 2500:2500
+      - 1025:2500
       - 1100:1100
 
   documenso:

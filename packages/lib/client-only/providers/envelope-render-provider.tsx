@@ -1,26 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 
-import { type Field, type Recipient } from '@prisma/client';
+import type { Field, Recipient } from '@prisma/client';
 
-import type { DocumentDataVersion } from '@documenso/lib/types/document';
-import { getDocumentDataUrl } from '@documenso/lib/utils/envelope-download';
 import type { TRecipientColor } from '@documenso/ui/lib/recipient-colors';
-import { getRecipientColor } from '@documenso/ui/lib/recipient-colors';
+import { AVAILABLE_RECIPIENT_COLORS } from '@documenso/ui/lib/recipient-colors';
 
 import type { TEnvelope } from '../../types/envelope';
 import type { FieldRenderMode } from '../../universal/field-renderer/render-field';
+import { getEnvelopeItemPdfUrl } from '../../utils/envelope-download';
 
-export type PageRenderData = {
-  scale: number;
-  pageIndex: number;
-  pageNumber: number;
-  pageWidth: number;
-  pageHeight: number;
-  imageLoadingState: ImageLoadingState;
-};
-
-export type ImageLoadingState = 'loading' | 'loaded' | 'error';
+type FileData =
+  | {
+      status: 'loading' | 'error';
+    }
+  | {
+      file: Uint8Array;
+      status: 'loaded';
+    };
 
 type EnvelopeRenderOverrideSettings = {
   mode?: FieldRenderMode;
@@ -28,22 +25,10 @@ type EnvelopeRenderOverrideSettings = {
   showRecipientSigningStatus?: boolean;
 };
 
-type EnvelopeRenderItem = {
-  id: string;
-  title: string;
-  order: number;
-  envelopeId: string;
-
-  /**
-   * The PDF data to render.
-   *
-   * If it's a string we assume it's a URL to the PDF file.
-   */
-  data: Uint8Array | string;
-};
+type EnvelopeRenderItem = TEnvelope['envelopeItems'][number];
 
 type EnvelopeRenderProviderValue = {
-  version: DocumentDataVersion;
+  getPdfBuffer: (envelopeItemId: string) => FileData | null;
   envelopeItems: EnvelopeRenderItem[];
   envelopeStatus: TEnvelope['status'];
   envelopeType: TEnvelope['type'];
@@ -61,26 +46,7 @@ type EnvelopeRenderProviderValue = {
 interface EnvelopeRenderProviderProps {
   children: React.ReactNode;
 
-  /**
-   * The envelope item version to render.
-   */
-  version: DocumentDataVersion;
-
-  envelope: Pick<TEnvelope, 'id' | 'status' | 'type'>;
-
-  /**
-   * The envelope items to render.
-   *
-   * If data is optional then we build the URL based of the IDs.
-   */
-  envelopeItems: {
-    id: string;
-    title: string;
-    order: number;
-    envelopeId: string;
-    documentDataId: string;
-    data?: Uint8Array | string;
-  }[];
+  envelope: Pick<TEnvelope, 'envelopeItems' | 'status' | 'type'>;
 
   /**
    * Optional fields which are passed down to renderers for custom rendering needs.
@@ -105,13 +71,6 @@ interface EnvelopeRenderProviderProps {
   token: string | undefined;
 
   /**
-   * The presign token to access the envelope.
-   *
-   * If not provided, it will be assumed that the current user can access the document.
-   */
-  presignToken?: string | undefined;
-
-  /**
    * Custom override settings for generic page renderers.
    */
   overrideSettings?: EnvelopeRenderOverrideSettings;
@@ -130,61 +89,88 @@ export const useCurrentEnvelopeRender = () => {
 };
 
 /**
- * Manages fetching the data required to render an envelope and it's items.
+ * Manages fetching and storing PDF files to render on the client.
  */
 export const EnvelopeRenderProvider = ({
   children,
   envelope,
-  envelopeItems: envelopeItemsFromProps,
   fields,
   token,
-  presignToken,
   recipients = [],
-  version,
   overrideSettings,
 }: EnvelopeRenderProviderProps) => {
+  // Indexed by documentDataId.
+  const [files, setFiles] = useState<Record<string, FileData>>({});
+
+  const [currentItem, setCurrentItem] = useState<EnvelopeRenderItem | null>(null);
+
   const [renderError, setRenderError] = useState<boolean>(false);
 
   const envelopeItems = useMemo(
-    () =>
-      [...envelopeItemsFromProps]
-        .sort((a, b) => a.order - b.order)
-        .map((item) => {
-          const pdfUrl = getDocumentDataUrl({
-            envelopeId: envelope.id,
-            envelopeItemId: item.id,
-            documentDataId: item.documentDataId,
-            version,
-            token,
-            presignToken,
-          });
-
-          const data = item.data || pdfUrl;
-
-          return {
-            ...item,
-            data,
-          };
-        }),
-    [envelopeItemsFromProps, envelope.id, token, version, presignToken],
+    () => envelope.envelopeItems.sort((a, b) => a.order - b.order),
+    [envelope.envelopeItems],
   );
 
-  const [currentItemId, setCurrentItemId] = useState<string | null>(envelopeItems[0]?.id ?? null);
+  const loadEnvelopeItemPdfFile = async (envelopeItem: EnvelopeRenderItem) => {
+    if (files[envelopeItem.id]?.status === 'loading') {
+      return;
+    }
 
-  const currentItem = useMemo((): EnvelopeRenderItem | null => {
-    return envelopeItems.find((item) => item.id === currentItemId) ?? null;
-  }, [currentItemId, envelopeItems]);
+    if (!files[envelopeItem.id]) {
+      setFiles((prev) => ({
+        ...prev,
+        [envelopeItem.id]: {
+          status: 'loading',
+        },
+      }));
+    }
+
+    try {
+      const downloadUrl = getEnvelopeItemPdfUrl({
+        type: 'view',
+        envelopeItem: envelopeItem,
+        token,
+      });
+
+      const response = await fetch(downloadUrl);
+      const file = await response.arrayBuffer();
+
+      setFiles((prev) => ({
+        ...prev,
+        [envelopeItem.id]: {
+          file: new Uint8Array(file),
+          status: 'loaded',
+        },
+      }));
+    } catch (error) {
+      console.error(error);
+
+      setFiles((prev) => ({
+        ...prev,
+        [envelopeItem.id]: {
+          status: 'error',
+        },
+      }));
+    }
+  };
+
+  const getPdfBuffer = useCallback(
+    (envelopeItemId: string) => {
+      return files[envelopeItemId] || null;
+    },
+    [files],
+  );
 
   const setCurrentEnvelopeItem = (envelopeItemId: string) => {
-    const foundItem = envelopeItems.find((item) => item.id === envelopeItemId);
+    const foundItem = envelope.envelopeItems.find((item) => item.id === envelopeItemId);
 
-    setCurrentItemId(foundItem?.id ?? null);
+    setCurrentItem(foundItem ?? null);
   };
 
   // Set the selected item to the first item if none is set.
   useEffect(() => {
     if (currentItem && !envelopeItems.some((item) => item.id === currentItem.id)) {
-      setCurrentItemId(null);
+      setCurrentItem(null);
     }
 
     if (!currentItem && envelopeItems.length > 0) {
@@ -192,20 +178,47 @@ export const EnvelopeRenderProvider = ({
     }
   }, [currentItem, envelopeItems]);
 
+  // Load PDF for the current item.
+  // In editor mode (token undefined): always load PDF so user can place fields.
+  // In signing mode (token defined): skip PDF for rich text items (displayed as rich text instead).
+  useEffect(() => {
+    if (!currentItem) {
+      return;
+    }
+
+    const isSigningMode = token !== undefined;
+    if (isSigningMode) {
+      const hasAnyRichText = envelope.envelopeItems.some((item) => item.richTextContent);
+      if (hasAnyRichText && currentItem.richTextContent) {
+        return;
+      }
+    }
+
+    if (!files[currentItem.id] || files[currentItem.id].status === 'error') {
+      void loadEnvelopeItemPdfFile(currentItem);
+    }
+  }, [currentItem, files, envelope.envelopeItems, token]);
+
   const recipientIds = useMemo(
     () => recipients.map((recipient) => recipient.id).sort(),
     [recipients],
   );
 
   const getRecipientColorKey = useCallback(
-    (recipientId: number) => getRecipientColor(recipientIds.findIndex((id) => id === recipientId)),
+    (recipientId: number) => {
+      const recipientIndex = recipientIds.findIndex((id) => id === recipientId);
+
+      return AVAILABLE_RECIPIENT_COLORS[
+        Math.max(recipientIndex, 0) % AVAILABLE_RECIPIENT_COLORS.length
+      ];
+    },
     [recipientIds],
   );
 
   return (
     <EnvelopeRenderContext.Provider
       value={{
-        version,
+        getPdfBuffer,
         envelopeItems,
         envelopeStatus: envelope.status,
         envelopeType: envelope.type,

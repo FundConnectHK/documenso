@@ -18,30 +18,30 @@ export function TemplateDocumentRejected({
   return (
     <div className="mt-4">
       <Heading className="mb-4 text-center text-2xl font-semibold text-slate-800">
-        <Trans>Document Rejected</Trans>
+        <Trans>文件已拒簽</Trans>
       </Heading>
 
       <Text className="mb-4 text-base">
         <Trans>
-          {signerName} has rejected the document "{documentName}".
+          {signerName} 已拒簽文件「{documentName}」。
         </Trans>
       </Text>
 
       {rejectionReason && (
         <Text className="mb-4 text-base text-slate-400">
-          <Trans>Reason for rejection: {rejectionReason}</Trans>
+          <Trans>拒簽原因：{rejectionReason}</Trans>
         </Text>
       )}
 
       <Text className="mb-6 text-base">
-        <Trans>You can view the document and its status by clicking the button below.</Trans>
+        <Trans>您可點擊下方按鈕檢視文件及其狀態。</Trans>
       </Text>
 
       <Button
         href={documentUrl}
-        className="bg-documenso-500 inline-flex items-center justify-center rounded-lg px-6 py-3 text-center text-sm font-medium text-black no-underline"
+        className="inline-flex items-center justify-center rounded-lg bg-[#F53333] px-6 py-3 text-center text-sm font-medium text-black no-underline"
       >
-        <Trans>View Document</Trans>
+        <Trans>檢視文件</Trans>
       </Button>
     </div>
   );

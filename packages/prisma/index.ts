@@ -1,6 +1,5 @@
 /// <reference types="@documenso/prisma/types/types.d.ts" />
 import { PrismaClient } from '@prisma/client';
-import { readReplicas } from '@prisma/extension-read-replicas';
 import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely';
 import kyselyExtension from 'prisma-extension-kysely';
 
@@ -8,14 +7,14 @@ import type { DB } from './generated/types';
 import { getDatabaseUrl } from './helper';
 import { remember } from './utils/remember';
 
-const prisma = remember(
+export const prisma = remember(
   'prisma',
   () =>
     new PrismaClient({
       datasourceUrl: getDatabaseUrl(),
       transactionOptions: {
-        maxWait: 5000,
-        timeout: 10000,
+        maxWait: 10000,
+        timeout: 20000,
       },
     }),
 );
@@ -39,6 +38,10 @@ export const kyselyPrisma = remember('kyselyPrisma', () =>
 export const prismaWithLogging = remember('prismaWithLogging', () => {
   const client = new PrismaClient({
     datasourceUrl: getDatabaseUrl(),
+    transactionOptions: {
+      maxWait: 10000,
+      timeout: 20000,
+    },
     log: [
       {
         emit: 'event',
@@ -69,26 +72,5 @@ export const prismaWithLogging = remember('prismaWithLogging', () => {
 
   return client;
 });
-
-export const prismaWithReplicas = remember('prismaWithReplicas', () => {
-  if (!process.env.NEXT_PRIVATE_DATABASE_REPLICA_URLS) {
-    return prisma;
-  }
-
-  const replicaUrls = process.env.NEXT_PRIVATE_DATABASE_REPLICA_URLS.split(',').map((url) =>
-    url.trim(),
-  );
-
-  // !: Nasty hack, means we can't do any fancy $primary/$replica queries
-  // !: but it is acceptable since not all setups will have replicas anyway.
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  return prisma.$extends(
-    readReplicas({
-      url: replicaUrls,
-    }),
-  ) as unknown as typeof prisma;
-});
-
-export { prismaWithReplicas as prisma };
 
 export { sql } from 'kysely';

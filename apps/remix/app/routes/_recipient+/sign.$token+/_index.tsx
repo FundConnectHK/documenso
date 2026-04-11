@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 import { DocumentSigningOrder, DocumentStatus, RecipientRole, SigningStatus } from '@prisma/client';
 import { Clock8 } from 'lucide-react';
-import { Link, redirect } from 'react-router';
+import { redirect } from 'react-router';
 import { getOptionalLoaderContext } from 'server/utils/get-loader-session';
 import { match } from 'ts-pattern';
 
@@ -25,11 +25,9 @@ import { getTeamSettings } from '@documenso/lib/server-only/team/get-team-settin
 import { getUserByEmail } from '@documenso/lib/server-only/user/get-user-by-email';
 import { DocumentAccessAuth } from '@documenso/lib/types/document-auth';
 import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
-import { isRecipientExpired } from '@documenso/lib/utils/recipients';
 import { prisma } from '@documenso/prisma';
 import { SigningCard3D } from '@documenso/ui/components/signing-card';
 
-import { Header as AuthenticatedHeader } from '~/components/general/app-header';
 import { DocumentSigningAuthPageView } from '~/components/general/document-signing/document-signing-auth-page';
 import { DocumentSigningAuthProvider } from '~/components/general/document-signing/document-signing-auth-provider';
 import { DocumentSigningPageViewV1 } from '~/components/general/document-signing/document-signing-page-view-v1';
@@ -39,6 +37,19 @@ import { EnvelopeSigningProvider } from '~/components/general/document-signing/e
 import { superLoaderJson, useSuperLoaderData } from '~/utils/super-json-loader';
 
 import type { Route } from './+types/_index';
+
+// Preload critical resources for faster page load
+export const links: Route.LinksFunction = () => [
+  {
+    rel: 'preload',
+    href: '/static/pdf.worker.min.mjs',
+    as: 'script',
+  },
+  {
+    rel: 'preconnect',
+    href: '/api/files',
+  },
+];
 
 const handleV1Loader = async ({ params, request }: Route.LoaderArgs) => {
   const { requestMetadata } = getOptionalLoaderContext();
@@ -141,10 +152,6 @@ const handleV1Loader = async ({ params, request }: Route.LoaderArgs) => {
     throw redirect(`/sign/${token}/rejected`);
   }
 
-  if (isRecipientExpired(recipient)) {
-    throw redirect(`/sign/${token}/expired`);
-  }
-
   if (
     document.status === DocumentStatus.COMPLETED ||
     recipient.signingStatus === SigningStatus.SIGNED
@@ -152,12 +159,9 @@ const handleV1Loader = async ({ params, request }: Route.LoaderArgs) => {
     throw redirect(documentMeta?.redirectUrl || `/sign/${token}/complete`);
   }
 
-  const [recipientSignatures, settings] = await Promise.all([
-    getRecipientSignatures({ recipientId: recipient.id }),
-    getTeamSettings({ teamId: document.teamId }),
-  ]);
+  const [recipientSignature] = await getRecipientSignatures({ recipientId: recipient.id });
 
-  const [recipientSignature] = recipientSignatures;
+  const settings = await getTeamSettings({ teamId: document.teamId });
 
   return {
     isDocumentAccessValid: true,
@@ -209,8 +213,7 @@ const handleV2Loader = async ({ params, request }: Route.LoaderArgs) => {
     return envelopeForSigning;
   }
 
-  const { envelope, recipient, isCompleted, isRejected, isExpired, isRecipientsTurn } =
-    envelopeForSigning;
+  const { envelope, recipient, isCompleted, isRejected, isRecipientsTurn } = envelopeForSigning;
 
   if (!isRecipientsTurn) {
     throw redirect(`/sign/${token}/waiting`);
@@ -242,6 +245,12 @@ const handleV2Loader = async ({ params, request }: Route.LoaderArgs) => {
     } as const;
   }
 
+  await viewedDocument({
+    token,
+    requestMetadata,
+    recipientAccessAuth: derivedRecipientAccessAuth,
+  }).catch(() => null);
+
   if (isRejected) {
     throw redirect(`/sign/${token}/rejected`);
   }
@@ -249,16 +258,6 @@ const handleV2Loader = async ({ params, request }: Route.LoaderArgs) => {
   if (isCompleted) {
     throw redirect(envelope.documentMeta.redirectUrl || `/sign/${token}/complete`);
   }
-
-  if (isExpired) {
-    throw redirect(`/sign/${token}/expired`);
-  }
-
-  await viewedDocument({
-    token,
-    requestMetadata,
-    recipientAccessAuth: derivedRecipientAccessAuth,
-  }).catch(() => null);
 
   return {
     isDocumentAccessValid: true,
@@ -268,6 +267,7 @@ const handleV2Loader = async ({ params, request }: Route.LoaderArgs) => {
 
 export async function loader(loaderArgs: Route.LoaderArgs) {
   const { token } = loaderArgs.params;
+  const { request } = loaderArgs;
 
   if (!token) {
     throw new Response('Not Found', { status: 404 });
@@ -371,25 +371,6 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
           <p className="mt-2.5 max-w-[60ch] text-center text-sm font-medium text-muted-foreground/60 md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
-
-          {user ? (
-            <Link to="/" className="mt-36 text-documenso-700 hover:text-documenso-600">
-              <Trans>Go Back Home</Trans>
-            </Link>
-          ) : (
-            <p className="mt-36 text-sm text-muted-foreground/60">
-              <Trans>
-                Want to send slick signing links like this one?{' '}
-                <Link
-                  to="https://documenso.com"
-                  className="text-documenso-700 hover:text-documenso-600"
-                >
-                  Check out Documenso
-                </Link>
-                .
-              </Trans>
-            </p>
-          )}
         </div>
       </div>
     );
@@ -409,21 +390,17 @@ const SigningPageV1 = ({ data }: { data: Awaited<ReturnType<typeof handleV1Loade
         recipient={recipient}
         user={user}
       >
-        <>
-          {sessionData?.user && <AuthenticatedHeader />}
-
-          <div className="mb-8 mt-8 px-4 md:mb-12 md:mt-12 md:px-8">
-            <DocumentSigningPageViewV1
-              recipient={recipientWithFields}
-              document={document}
-              fields={fields}
-              completedFields={completedFields}
-              isRecipientsTurn={isRecipientsTurn}
-              allRecipients={allRecipients}
-              includeSenderDetails={includeSenderDetails}
-            />
-          </div>
-        </>
+        <div className="mb-8 mt-8 px-4 md:mb-12 md:mt-12 md:px-8">
+          <DocumentSigningPageViewV1
+            recipient={recipientWithFields}
+            document={document}
+            fields={fields}
+            completedFields={completedFields}
+            isRecipientsTurn={isRecipientsTurn}
+            allRecipients={allRecipients}
+            includeSenderDetails={includeSenderDetails}
+          />
+        </div>
       </DocumentSigningAuthProvider>
     </DocumentSigningProvider>
   );
@@ -471,25 +448,6 @@ const SigningPageV2 = ({ data }: { data: Awaited<ReturnType<typeof handleV2Loade
           <p className="mt-2.5 max-w-[60ch] text-center text-sm font-medium text-muted-foreground/60 md:text-base">
             <Trans>This document has been cancelled by the owner.</Trans>
           </p>
-
-          {user ? (
-            <Link to="/" className="mt-36 text-documenso-700 hover:text-documenso-600">
-              <Trans>Go Back Home</Trans>
-            </Link>
-          ) : (
-            <p className="mt-36 text-sm text-muted-foreground/60">
-              <Trans>
-                Want to send slick signing links like this one?{' '}
-                <Link
-                  to="https://documenso.com"
-                  className="text-documenso-700 hover:text-documenso-600"
-                >
-                  Check out Documenso
-                </Link>
-                .
-              </Trans>
-            </p>
-          )}
         </div>
       </div>
     );
@@ -507,12 +465,7 @@ const SigningPageV2 = ({ data }: { data: Awaited<ReturnType<typeof handleV2Loade
         recipient={recipient}
         user={user}
       >
-        <EnvelopeRenderProvider
-          version="current"
-          envelope={envelope}
-          envelopeItems={envelope.envelopeItems}
-          token={recipient.token}
-        >
+        <EnvelopeRenderProvider envelope={envelope} token={recipient.token}>
           <DocumentSigningPageViewV2 />
         </EnvelopeRenderProvider>
       </DocumentSigningAuthProvider>

@@ -53,6 +53,14 @@ export const ZFieldSchema = FieldSchema.pick({
 export const ZEnvelopeFieldSchema = ZFieldSchema.omit({
   documentId: true,
   templateId: true,
+}).extend({
+  signature: z
+    .object({
+      signatureImageAsBase64: z.string().nullable(),
+      typedSignature: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const ZFieldPageNumberSchema = z

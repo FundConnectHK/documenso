@@ -1,7 +1,6 @@
 import { Plural, Trans } from '@lingui/react/macro';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { BanIcon, DownloadCloudIcon } from 'lucide-react';
-import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
@@ -28,28 +27,24 @@ export const EnvelopeSignerHeader = () => {
   const { envelopeData, envelope, recipientFieldsRemaining, recipient } =
     useRequiredEnvelopeSigningContext();
 
-  const isEmbedSigning = useEmbedSigningContext() !== null;
-
   return (
     <nav className="embed--DocumentWidgetHeader max-w-screen flex flex-row justify-between border-b border-border bg-background px-4 py-3 md:px-6">
       {/* Left side - Logo and title */}
       <div className="flex min-w-0 flex-1 items-center space-x-2 md:w-auto md:flex-none">
-        {!isEmbedSigning && (
-          <Link to="/" className="flex-shrink-0">
-            {envelopeData.settings.brandingEnabled && envelopeData.settings.brandingLogo ? (
-              <img
-                src={`/api/branding/logo/team/${envelope.teamId}`}
-                alt={`${envelope.team.name}'s Logo`}
-                className="h-6 w-auto"
-              />
-            ) : (
-              <>
-                <BrandingLogo className="hidden h-6 w-auto md:block" />
-                <BrandingLogoIcon className="h-6 w-auto md:hidden" />
-              </>
-            )}
-          </Link>
-        )}
+        <div className="flex-shrink-0">
+          {envelopeData.settings.brandingEnabled && envelopeData.settings.brandingLogo ? (
+            <img
+              src={`/api/branding/logo/team/${envelope.teamId}`}
+              alt={`${envelope.team.name}'s Logo`}
+              className="h-6 w-auto"
+            />
+          ) : (
+            <>
+              <BrandingLogo className="hidden h-6 w-auto md:block" />
+              <BrandingLogoIcon className="h-6 w-auto md:hidden" />
+            </>
+          )}
+        </div>
 
         <h1
           title={envelope.title}
@@ -58,7 +53,7 @@ export const EnvelopeSignerHeader = () => {
           {envelope.title}
         </h1>
 
-        {!isEmbedSigning && <Separator orientation="vertical" className="hidden h-6 md:block" />}
+        <Separator orientation="vertical" className="hidden h-6 md:block" />
 
         <div className="hidden items-center space-x-2 md:flex">
           <h1 className="whitespace-nowrap text-sm font-medium text-foreground">
@@ -120,7 +115,7 @@ const MobileDropdownMenu = () => {
             <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
               <div>
                 <DownloadCloudIcon className="mr-2 h-4 w-4" />
-                <Trans>Download PDF</Trans>
+                <Trans>檢視原始PDF</Trans>
               </div>
             </DropdownMenuItem>
           }

@@ -11,5 +11,10 @@ export const getRecipientSignatures = async ({ recipientId }: GetRecipientSignat
         recipientId,
       },
     },
+    orderBy: [
+      { field: { page: 'asc' } },
+      { field: { positionY: 'asc' } },
+      { field: { positionX: 'asc' } },
+    ],
   });
 };

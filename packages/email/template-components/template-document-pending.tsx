@@ -28,20 +28,20 @@ export const TemplateDocumentPending = ({
                 src={getAssetUrl('/static/clock.png')}
                 className="-mt-0.5 mr-2 inline h-7 w-7 align-middle"
               />
-              <Trans>Waiting for others</Trans>
+              <Trans>等待其他人</Trans>
             </Text>
           </Column>
         </Section>
 
-        <Text className="text-primary mb-0 text-center text-lg font-semibold">
+        <Text className="mb-0 text-center text-lg font-semibold text-primary">
           <Trans>“{documentName}” has been signed</Trans>
         </Text>
 
         <Text className="mx-auto mb-6 mt-1 max-w-[80%] text-center text-base text-slate-400">
           <Trans>
-            We're still waiting for other signers to sign this document.
+            我們仍在等待其他簽署人簽署此文件。
             <br />
-            We'll notify you as soon as it's ready.
+            完成後將立即通知您。
           </Trans>
         </Text>
       </Section>

@@ -1,23 +1,15 @@
-import { useMemo, useRef, useState } from 'react';
+import { lazy, useMemo } from 'react';
 
-import { Plural, Trans, useLingui } from '@lingui/react/macro';
+import { Plural, Trans } from '@lingui/react/macro';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { motion } from 'framer-motion';
-import {
-  ArrowLeftIcon,
-  BanIcon,
-  DownloadCloudIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
-  PaperclipIcon,
-} from 'lucide-react';
+import { ArrowLeftIcon, BanIcon, DownloadCloudIcon, Loader, PaperclipIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
-import { PDF_VIEWER_ERROR_MESSAGES } from '@documenso/lib/constants/pdf-viewer-i18n';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
-import { cn } from '@documenso/ui/lib/utils';
+import PDFViewerKonvaLazy from '@documenso/ui/components/pdf-viewer/pdf-viewer-konva-lazy';
 import { Button } from '@documenso/ui/primitives/button';
 import { Separator } from '@documenso/ui/primitives/separator';
 
@@ -31,22 +23,35 @@ import { SignFieldNumberDialog } from '~/components/dialogs/sign-field-number-di
 import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signature-dialog';
 import { SignFieldTextDialog } from '~/components/dialogs/sign-field-text-dialog';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
-import { EnvelopeSignerPageRenderer } from '~/components/general/envelope-signing/envelope-signer-page-renderer';
-import { EnvelopePdfViewer } from '~/components/general/pdf-viewer/envelope-pdf-viewer';
 
-import { BrandingLogo } from '../branding-logo';
 import { DocumentSigningAttachmentsPopover } from '../document-signing/document-signing-attachments-popover';
 import { EnvelopeItemSelector } from '../envelope-editor/envelope-file-selector';
 import EnvelopeSignerForm from '../envelope-signing/envelope-signer-form';
 import { EnvelopeSignerHeader } from '../envelope-signing/envelope-signer-header';
 import { DocumentSigningMobileWidget } from './document-signing-mobile-widget';
+import {
+  DocumentSigningReadProgressProvider,
+  useOptionalDocumentSigningReadProgress,
+} from './document-signing-read-progress-provider';
 import { DocumentSigningRejectDialog } from './document-signing-reject-dialog';
 import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
+import { RichTextSigningView } from './rich-text-signing-view';
+
+const EnvelopeSignerPageRenderer = lazy(
+  async () => import('~/components/general/envelope-signing/envelope-signer-page-renderer'),
+);
 
 export const DocumentSigningPageViewV2 = () => {
-  const { envelopeItems, currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
+  return (
+    <DocumentSigningReadProgressProvider>
+      <DocumentSigningPageViewV2Content />
+    </DocumentSigningReadProgressProvider>
+  );
+};
 
-  const scrollableContainerRef = useRef<HTMLDivElement>(null);
+const DocumentSigningPageViewV2Content = () => {
+  const { envelopeItems, currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
+  const readProgress = useOptionalDocumentSigningReadProgress();
 
   const {
     isDirectTemplate,
@@ -61,12 +66,13 @@ export const DocumentSigningPageViewV2 = () => {
   const {
     isEmbed = false,
     allowDocumentRejection = true,
-    hidePoweredBy = true,
     onDocumentRejected,
   } = useEmbedSigningContext() || {};
 
-  const { t } = useLingui();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Always hide powered by branding for recipient pages
+  const hidePoweredBy = true;
+
+  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
 
   /**
    * The total remaining fields remaining for the current recipient or selected assistant recipient.
@@ -97,159 +103,156 @@ export const DocumentSigningPageViewV2 = () => {
       {/* Main Content Area */}
       <div className="flex h-[calc(100vh-4rem)] w-screen">
         {/* Left Section - Step Navigation */}
-        <div
-          className={cn(
-            'embed--DocumentWidgetContainer hidden flex-shrink-0 flex-col border-r border-border bg-background transition-[width] duration-300 lg:flex',
-            isSidebarCollapsed ? 'w-12' : 'w-80',
-          )}
-        >
-          {isSidebarCollapsed && (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="ghost"
-                className="h-7 w-7 p-0"
-                aria-label={t`Expand sidebar`}
-                onClick={() => setIsSidebarCollapsed(false)}
-              >
-                <PanelLeftOpenIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        <div className="embed--DocumentWidgetContainer hidden w-80 flex-shrink-0 flex-col overflow-y-auto border-r border-border bg-background py-4 lg:flex">
+          <div className="px-4">
+            <h3 className="flex items-end justify-between text-sm font-semibold text-foreground">
+              {match(recipient.role)
+                .with(RecipientRole.VIEWER, () => <Trans>View Document</Trans>)
+                .with(RecipientRole.SIGNER, () => <Trans>Sign Document</Trans>)
+                .with(RecipientRole.APPROVER, () => <Trans>Approve Document</Trans>)
+                .with(RecipientRole.ASSISTANT, () => <Trans>Assist Document</Trans>)
+                .otherwise(() => null)}
 
-          <div
-            className={cn(
-              'flex flex-1 flex-col overflow-hidden py-4',
-              isSidebarCollapsed && 'invisible w-0',
-            )}
-          >
-            <div className="px-4">
-              <h3 className="flex items-end justify-between text-sm font-semibold text-foreground">
-                {match(recipient.role)
-                  .with(RecipientRole.VIEWER, () => <Trans>View Document</Trans>)
-                  .with(RecipientRole.SIGNER, () => <Trans>Sign Document</Trans>)
-                  .with(RecipientRole.APPROVER, () => <Trans>Approve Document</Trans>)
-                  .with(RecipientRole.ASSISTANT, () => <Trans>Assist Document</Trans>)
-                  .otherwise(() => null)}
+              {!isRichTextSigningMode && (
+                <span className="ml-2 rounded border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
+                  <Plural
+                    value={recipientFieldsRemaining.length}
+                    one="1 Field Remaining"
+                    other="# Fields Remaining"
+                  />
+                </span>
+              )}
+            </h3>
 
-                <div className="ml-2 flex items-center gap-1">
-                  <span className="rounded border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
-                    <Plural
-                      value={recipientFieldsRemaining.length}
-                      one="1 Field Remaining"
-                      other="# Fields Remaining"
-                    />
-                  </span>
-
-                  <Button
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    aria-label={t`Collapse sidebar`}
-                    onClick={() => setIsSidebarCollapsed(true)}
-                  >
-                    <PanelLeftCloseIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </h3>
-
+            {!isRichTextSigningMode && (
               <div className="relative my-4 h-[4px] rounded-md bg-muted">
                 <motion.div
                   layout="size"
                   layoutId="document-flow-container-step"
-                  className="absolute inset-y-0 left-0 bg-primary"
+                  className="absolute inset-y-0 left-0 bg-documenso"
                   style={{
                     width: `${100 - (100 / requiredRecipientFields.length) * (recipientFieldsRemaining.length ?? 0)}%`,
                   }}
                 />
               </div>
+            )}
 
-              <div className="embed--DocumentWidgetContent mt-6 space-y-3">
-                <EnvelopeSignerForm />
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            {/* Quick Actions. */}
-            {!isDirectTemplate && (
-              <div className="embed--Actions space-y-3 px-4">
-                <h4 className="text-sm font-semibold text-foreground">
-                  <Trans>Actions</Trans>
-                </h4>
-
-                <DocumentSigningAttachmentsPopover
-                  envelopeId={envelope.id}
-                  token={recipient.token}
-                  trigger={
-                    <Button variant="ghost" size="sm" className="w-full justify-start">
-                      <PaperclipIcon className="mr-2 h-4 w-4" />
-                      <Trans>Attachments</Trans>
-                    </Button>
-                  }
-                />
-
-                <EnvelopeDownloadDialog
-                  envelopeId={envelope.id}
-                  envelopeStatus={envelope.status}
-                  envelopeItems={envelope.envelopeItems}
-                  token={recipient.token}
-                  trigger={
-                    <Button variant="ghost" size="sm" className="w-full justify-start">
-                      <DownloadCloudIcon className="mr-2 h-4 w-4" />
-                      <Trans>Download PDF</Trans>
-                    </Button>
-                  }
-                />
-
-                {envelope.type === EnvelopeType.DOCUMENT && allowDocumentRejection && (
-                  <DocumentSigningRejectDialog
-                    documentId={mapSecondaryIdToDocumentId(envelope.secondaryId)}
-                    token={recipient.token}
-                    onRejected={
-                      onDocumentRejected &&
-                      ((reason) =>
-                        onDocumentRejected({
-                          token: recipient.token,
-                          documentId: mapSecondaryIdToDocumentId(envelope.secondaryId),
-                          envelopeId: envelope.id,
-                          recipientId: recipient.id,
-                          reason,
-                        }))
-                    }
-                    trigger={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start hover:text-destructive"
-                      >
-                        <BanIcon className="mr-2 h-4 w-4" />
-                        <Trans>Reject Document</Trans>
-                      </Button>
-                    }
+            {/* 閱讀進度條 - 僅在需要滾動時顯示 */}
+            {readProgress?.requiresScroll && (
+              <div className="my-4">
+                <p className="mb-2 text-xs text-muted-foreground">
+                  <Trans>閱讀進度</Trans>
+                </p>
+                <div className="relative h-[4px] rounded-md bg-muted">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 rounded-md bg-documenso"
+                    initial={false}
+                    animate={{ width: `${readProgress.readProgress}%` }}
+                    transition={{ duration: 0.2 }}
                   />
-                )}
+                </div>
               </div>
             )}
 
-            <div className="embed--DocumentWidgetFooter mt-auto">
-              {/* Footer of left sidebar. */}
-              {!isEmbed && (
-                <div className="px-4">
-                  <Button asChild variant="ghost" className="w-full justify-start">
-                    <Link to="/">
-                      <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                      <Trans>Return</Trans>
-                    </Link>
+            <div className="embed--DocumentWidgetContent mt-6 space-y-3">
+              <EnvelopeSignerForm />
+            </div>
+          </div>
+
+          <Separator className="my-6" />
+
+          {/* Quick Actions. */}
+          {!isDirectTemplate && (
+            <div className="embed--Actions space-y-3 px-4">
+              <h4 className="text-sm font-semibold text-foreground">
+                <Trans>Actions</Trans>
+              </h4>
+
+              <DocumentSigningAttachmentsPopover
+                envelopeId={envelope.id}
+                token={recipient.token}
+                trigger={
+                  <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <PaperclipIcon className="mr-2 h-4 w-4" />
+                    <Trans>Attachments</Trans>
                   </Button>
-                </div>
+                }
+              />
+
+              <EnvelopeDownloadDialog
+                envelopeId={envelope.id}
+                envelopeStatus={envelope.status}
+                envelopeItems={envelope.envelopeItems}
+                token={recipient.token}
+                trigger={
+                  <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <DownloadCloudIcon className="mr-2 h-4 w-4" />
+                    <Trans>檢視原始PDF</Trans>
+                  </Button>
+                }
+              />
+
+              {envelope.type === EnvelopeType.DOCUMENT && allowDocumentRejection && (
+                <DocumentSigningRejectDialog
+                  documentId={mapSecondaryIdToDocumentId(envelope.secondaryId)}
+                  token={recipient.token}
+                  onRejected={
+                    onDocumentRejected &&
+                    ((reason) =>
+                      onDocumentRejected({
+                        token: recipient.token,
+                        documentId: mapSecondaryIdToDocumentId(envelope.secondaryId),
+                        envelopeId: envelope.id,
+                        recipientId: recipient.id,
+                        reason,
+                      }))
+                  }
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start hover:text-destructive"
+                    >
+                      <BanIcon className="mr-2 h-4 w-4" />
+                      <Trans>Reject Document</Trans>
+                    </Button>
+                  }
+                />
               )}
             </div>
+          )}
+
+          <div className="embed--DocumentWidgetFooter mt-auto">
+            {/* Footer of left sidebar. */}
+            {!isEmbed && (
+              <div className="px-4">
+                <Button asChild variant="ghost" className="w-full justify-start">
+                  <Link to="/">
+                    <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                    <Trans>Return</Trans>
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
         <div
-          className="embed--DocumentContainer min-w-0 flex-1 overflow-y-auto"
-          ref={scrollableContainerRef}
+          ref={readProgress?.setScrollContainerRef}
+          onScroll={readProgress?.handleScroll}
+          className="embed--DocumentContainer relative flex-1 overflow-y-auto"
         >
+          {/* 閱讀進度條 - 移動端顯示在文檔頂部，僅在需要滾動時顯示 */}
+          {readProgress?.requiresScroll && (
+            <div className="sticky top-0 z-10 h-1 bg-muted lg:hidden">
+              <motion.div
+                className="h-full bg-documenso"
+                initial={false}
+                animate={{ width: `${readProgress.readProgress}%` }}
+                transition={{ duration: 0.2 }}
+              />
+            </div>
+          )}
           <div className="flex flex-col">
             {/* Horizontal envelope item selector */}
             {envelopeItems.length > 1 && (
@@ -260,13 +263,16 @@ export const DocumentSigningPageViewV2 = () => {
                     number={i + 1}
                     primaryText={doc.title}
                     secondaryText={
-                      <Plural
-                        one="1 Field"
-                        other="# Fields"
-                        value={
-                          remainingFields.filter((field) => field.envelopeItemId === doc.id).length
-                        }
-                      />
+                      isRichTextSigningMode ? null : (
+                        <Plural
+                          one="1 Field"
+                          other="# Fields"
+                          value={
+                            remainingFields.filter((field) => field.envelopeItemId === doc.id)
+                              .length
+                          }
+                        />
+                      )
                     }
                     isSelected={currentEnvelopeItem?.id === doc.id}
                     buttonProps={{ onClick: () => setCurrentEnvelopeItem(doc.id) }}
@@ -277,37 +283,38 @@ export const DocumentSigningPageViewV2 = () => {
 
             {/* Document View */}
             <div className="embed--DocumentViewer flex flex-col items-center justify-center p-2 sm:mt-4 sm:p-4">
-              {currentEnvelopeItem ? (
-                <EnvelopePdfViewer
+              {currentEnvelopeItem?.richTextContent ? (
+                <RichTextSigningView
+                  key={currentEnvelopeItem.id}
+                  richTextContent={currentEnvelopeItem.richTextContent}
+                  envelopeItemId={currentEnvelopeItem.id}
+                />
+              ) : currentEnvelopeItem ? (
+                <PDFViewerKonvaLazy
+                  renderer="signing"
                   key={currentEnvelopeItem.id}
                   customPageRenderer={EnvelopeSignerPageRenderer}
-                  scrollParentRef={scrollableContainerRef}
-                  errorMessage={PDF_VIEWER_ERROR_MESSAGES.signing}
                 />
+              ) : envelopeItems.length > 0 ? (
+                <div className="flex h-[80vh] max-h-[60rem] w-full flex-col items-center justify-center">
+                  <Loader className="h-12 w-12 animate-spin text-documenso" />
+                  <p className="mt-4 text-muted-foreground">
+                    <Trans>Loading document...</Trans>
+                  </p>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-32">
                   <p className="text-sm text-foreground">
-                    <Trans>No document selected</Trans>
+                    <Trans>No documents found</Trans>
                   </p>
                 </div>
               )}
 
-              {/* Mobile widget - Additional padding to allow users to scroll */}
-              <div className="block pb-28 lg:hidden">
-                <DocumentSigningMobileWidget />
-              </div>
-
-              {!hidePoweredBy && (
-                <a
-                  href="https://documenso.com"
-                  target="_blank"
-                  className="fixed bottom-0 right-0 z-40 hidden cursor-pointer rounded-tl bg-primary px-2 py-1 text-xs font-medium text-primary-foreground opacity-60 hover:opacity-100 lg:block"
-                >
-                  <span>
-                    <Trans>Powered by</Trans>
-                  </span>
-                  <BrandingLogo className="ml-2 inline-block h-[14px]" />
-                </a>
+              {/* Mobile widget - hide during loading */}
+              {currentEnvelopeItem && (
+                <div className="block pb-28 lg:hidden">
+                  <DocumentSigningMobileWidget />
+                </div>
               )}
             </div>
           </div>

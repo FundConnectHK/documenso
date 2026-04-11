@@ -16,12 +16,18 @@ echo "Building docker image for monorepo at $MONOREPO_ROOT"
 echo "App version: $APP_VERSION"
 echo "Git SHA: $GIT_SHA"
 
+# Check if --no-cache flag is provided
+NO_CACHE_FLAG=""
+if [ "$1" == "--no-cache" ] || [ "$NO_CACHE" == "1" ]; then
+    NO_CACHE_FLAG="--no-cache"
+    echo "⚠️  使用 --no-cache 选项，将重新构建所有层（不使用缓存）"
+fi
+
 # Build with temporary base tag
 docker build -f "$SCRIPT_DIR/Dockerfile" \
     --progress=plain \
-    --build-arg NEXT_PRIVATE_TELEMETRY_KEY="${NEXT_PRIVATE_TELEMETRY_KEY:-}" \
-    --build-arg NEXT_PRIVATE_TELEMETRY_HOST="${NEXT_PRIVATE_TELEMETRY_HOST:-}" \
-    -t "documenso-base" \
+    $NO_CACHE_FLAG \
+    -t "fundconnecthk-base" \
     "$MONOREPO_ROOT"
 
 # Handle repository tagging
@@ -29,28 +35,36 @@ if [ ! -z "$DOCKER_REPOSITORY" ]; then
     echo "Using custom repository: $DOCKER_REPOSITORY"
     
     # Add tags for custom repository
-    docker tag "documenso-base" "$DOCKER_REPOSITORY:latest"
-    docker tag "documenso-base" "$DOCKER_REPOSITORY:$GIT_SHA"
+    docker tag "fundconnecthk-base" "$DOCKER_REPOSITORY:latest"
+    docker tag "fundconnecthk-base" "$DOCKER_REPOSITORY:$GIT_SHA"
 
     # Add version tag if available
     if [ ! -z "$APP_VERSION" ] && [ "$APP_VERSION" != "undefined" ]; then
-        docker tag "documenso-base" "$DOCKER_REPOSITORY:$APP_VERSION"
+        docker tag "fundconnecthk-base" "$DOCKER_REPOSITORY:$APP_VERSION"
     fi
 else
-    echo "Using default repositories: dockerhub and ghcr.io"
+    echo "Using default repository: fundconnecthk"
     
-    # Add tags for both default repositories
-    docker tag "documenso-base" "documenso/documenso:latest"
-    docker tag "documenso-base" "documenso/documenso:$GIT_SHA"
-    docker tag "documenso-base" "ghcr.io/documenso/documenso:latest"
-    docker tag "documenso-base" "ghcr.io/documenso/documenso:$GIT_SHA"
+    # Add tags for default repository
+    docker tag "fundconnecthk-base" "fundconnecthk:latest"
+    docker tag "fundconnecthk-base" "fundconnecthk:$GIT_SHA"
 
     # Add version tags if available
     if [ ! -z "$APP_VERSION" ] && [ "$APP_VERSION" != "undefined" ]; then
-        docker tag "documenso-base" "documenso/documenso:$APP_VERSION"
-        docker tag "documenso-base" "ghcr.io/documenso/documenso:$APP_VERSION"
+        docker tag "fundconnecthk-base" "fundconnecthk:$APP_VERSION"
     fi
 fi
 
+# Tag and push to Google Artifact Registry
+GCR_IMAGE="europe-west1-docker.pkg.dev/fundconnecthk-489906/services/contract-service:latest"
+docker tag "fundconnecthk-base" "$GCR_IMAGE"
+read -r -p "是否推送镜像到 $GCR_IMAGE？[y/N] " PUSH_CONFIRM
+if [[ "$PUSH_CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Pushing to $GCR_IMAGE..."
+    docker push "$GCR_IMAGE"
+else
+    echo "跳过推送。"
+fi
+
 # Remove the temporary base tag
-docker rmi "documenso-base"
+docker rmi "fundconnecthk-base"

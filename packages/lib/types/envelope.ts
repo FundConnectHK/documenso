@@ -65,6 +65,8 @@ export const ZEnvelopeSchema = EnvelopeSchema.pick({
     id: true,
     title: true,
     order: true,
+    richTextContent: true,
+    richTextSignatureFieldId: true,
   }).array(),
   directLink: TemplateDirectLinkSchema.pick({
     directTemplateRecipientId: true,
