@@ -949,7 +949,7 @@ model BackgroundJob {
   status     BackgroundJobStatus @default(PENDING)
   payload    Json?
   retried    Int                 @default(0)
-  maxRetries Int                 @default(3)
+  maxRetries Int                 @default(5)
 
   // Taken from the job definition
   jobId   String
@@ -977,7 +977,7 @@ model BackgroundJobTask {
 
   result     Json?
   retried    Int   @default(0)
-  maxRetries Int   @default(3)
+  maxRetries Int   @default(5)
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

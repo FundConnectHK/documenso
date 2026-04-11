@@ -466,8 +466,8 @@ export const getCertificateAndAuditLogData = async ({
   documentMeta: DocumentMeta;
   settings: { includeSigningCertificate: boolean; includeAuditLog: boolean };
 }) => {
-  const getCertificateDataPromise = settings.includeSigningCertificate
-    ? getCertificatePdf({
+  const certificateData = settings.includeSigningCertificate
+    ? await getCertificatePdf({
         documentId: legacyDocumentId,
         language: documentMeta.language,
       }).catch((e) => {
@@ -478,8 +478,8 @@ export const getCertificateAndAuditLogData = async ({
       })
     : null;
 
-  const getAuditLogDataPromise = settings.includeAuditLog
-    ? getAuditLogsPdf({
+  const auditLogData = settings.includeAuditLog
+    ? await getAuditLogsPdf({
         documentId: legacyDocumentId,
         language: documentMeta.language,
       }).catch((e) => {
@@ -489,11 +489,6 @@ export const getCertificateAndAuditLogData = async ({
         return null;
       })
     : null;
-
-  const [certificateData, auditLogData] = await Promise.all([
-    getCertificateDataPromise,
-    getAuditLogDataPromise,
-  ]);
 
   return {
     certificateData,

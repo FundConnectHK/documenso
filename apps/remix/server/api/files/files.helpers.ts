@@ -49,13 +49,12 @@ export const handleEnvelopeItemFileRequest = async ({
 
       // For viewing (not downloading), redirect directly to OSS for better performance
       // Downloads still need to be proxied to set Content-Disposition header
+      // IMPORTANT: Do NOT cache the 302 redirect - presigned URLs expire in 1 hour,
+      // so caching would serve expired URLs to users
       if (!isDownload) {
-        c.header(
-          'Cache-Control',
-          status === DocumentStatus.COMPLETED
-            ? 'public, max-age=31536000, immutable'
-            : 'public, max-age=0, must-revalidate',
-        );
+        c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        c.header('Pragma', 'no-cache');
+        c.header('Expires', '0');
         c.header('ETag', etag);
         return c.redirect(url, 302);
       }

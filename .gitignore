@@ -63,3 +63,6 @@ CLAUDE.md
 
 .env
 .env.production
+
+# one-off GitHub Actions env secrets (never commit)
+.github-deploy-secrets.env
