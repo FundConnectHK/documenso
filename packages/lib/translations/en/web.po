@@ -32,10 +32,6 @@ msgstr "\"{0}\" will appear on the document as it has a timezone of \"{1}\"."
 msgid "\"{documentName}\" has been deleted by an admin."
 msgstr "\"{documentName}\" has been deleted by an admin."
 
-#: packages/email/template-components/template-document-pending.tsx
-msgid "“{documentName}” has been signed"
-msgstr "“{documentName}” has been signed"
-
 #: apps/remix/app/components/dialogs/document-delete-dialog.tsx
 msgid "\"{documentTitle}\" has been successfully deleted"
 msgstr "\"{documentTitle}\" has been successfully deleted"
@@ -347,19 +343,17 @@ msgstr "{inviterName} on behalf of \"{0}\" has invited you to {recipientActionVe
 msgid "{inviterName} on behalf of \"{teamName}\" has invited you to {action} {documentName}"
 msgstr "{inviterName} on behalf of \"{teamName}\" has invited you to {action} {documentName}"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 代表「{teamName}」邀請您{0}<0/>「{documentName}」"
-msgstr "{inviterName} 代表「{teamName}」邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 代表「{teamName}」邀請您{actionVerbZhHk}<0/>「{documentName}」"
+msgstr "{inviterName} 代表「{teamName}」邀請您{actionVerbZhHk}<0/>「{documentName}」"
 
 #: packages/email/template-components/template-document-cancel.tsx
 msgid "{inviterName} 已取消文件<0/>「{documentName}」"
 msgstr "{inviterName} 已取消文件<0/>「{documentName}」"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 邀請您{0}<0/>「{documentName}」"
-msgstr "{inviterName} 邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
+msgstr "{inviterName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 
 #: apps/remix/app/components/dialogs/passkey-create-dialog.tsx
 msgid "{MAXIMUM_PASSKEYS, plural, one {You cannot have more than # passkey.} other {You cannot have more than # passkeys.}}"
@@ -425,10 +419,9 @@ msgstr "{signerName} 已拒簽文件「{documentName}」。"
 msgid "{teamName} has invited you to {action} {documentName}"
 msgstr "{teamName} has invited you to {action} {documentName}"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{teamName} 邀請您{0}<0/>「{documentName}」"
-msgstr "{teamName} 邀請您{0}<0/>「{documentName}」"
+msgid "{teamName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
+msgstr "{teamName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 
 #: packages/lib/utils/document-audit-logs.ts
 msgid "{user} added a field"
@@ -600,6 +593,10 @@ msgstr "{visibleRows, plural, one {Showing # result.} other {Showing # results.}
 #: packages/email/template-components/template-document-completed.tsx
 msgid "「{documentName}」已由所有簽署人完成簽署"
 msgstr "「{documentName}」已由所有簽署人完成簽署"
+
+#: packages/email/template-components/template-document-pending.tsx
+msgid "「{documentName}」您已簽署，尚待其他簽署人"
+msgstr "「{documentName}」您已簽署，尚待其他簽署人"
 
 #. placeholder {0}: document.title
 #. placeholder {0}: envelope.title
@@ -13167,8 +13164,8 @@ msgstr "您已獲邀加入以下組織"
 #. placeholder {0}: envelope.title
 #: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
 #: packages/lib/server-only/document/resend-document.ts
-msgid "您已發起文件「{0}」，請您{recipientActionVerb}。"
-msgstr "您已發起文件「{0}」，請您{recipientActionVerb}。"
+msgid "您已發起文件「{0}」，請您{actionVerbZhHk}。"
+msgstr "您已發起文件「{0}」，請您{actionVerbZhHk}。"
 
 #: packages/email/template-components/template-document-self-signed.tsx
 msgid "您已簽署「{documentName}」"
@@ -13225,8 +13222,8 @@ msgid "提示"
 msgstr "提示"
 
 #: packages/lib/server-only/document/resend-document.ts
-msgid "提醒：請{recipientActionVerb}您的文件"
-msgstr "提醒：請{recipientActionVerb}您的文件"
+msgid "提醒：請{actionVerbZhHk}您的文件"
+msgstr "提醒：請{actionVerbZhHk}您的文件"
 
 #: packages/email/template-components/template-document-rejected.tsx
 msgid "文件已拒簽"
@@ -13326,14 +13323,13 @@ msgstr "確認電子郵件"
 msgid "等待其他人"
 msgstr "等待其他人"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
-#: packages/email/template-components/template-document-invite.tsx
-msgid "請{0}您的文件<0/>「{documentName}」"
-msgstr "請{0}您的文件<0/>「{documentName}」"
-
 #: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
-msgid "請{recipientActionVerb}您的文件"
-msgstr "請{recipientActionVerb}您的文件"
+msgid "請{actionVerbZhHk}您的文件"
+msgstr "請{actionVerbZhHk}您的文件"
+
+#: packages/email/template-components/template-document-invite.tsx
+msgid "請{actionVerbZhHk}您的文件<0/>「{documentName}」"
+msgstr "請{actionVerbZhHk}您的文件<0/>「{documentName}」"
 
 #: packages/email/template-components/template-document-completed.tsx
 msgid "請下載文件以繼續。"

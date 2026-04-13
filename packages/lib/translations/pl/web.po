@@ -37,10 +37,6 @@ msgstr "W dokumencie, z racji strefy czasowej „{1}”, pojawi się wartość �
 msgid "\"{documentName}\" has been deleted by an admin."
 msgstr "Dokument „{documentName}” został usunięty przez administratora."
 
-#: packages/email/template-components/template-document-pending.tsx
-msgid "“{documentName}” has been signed"
-msgstr "Dokument „{documentName}” został podpisany"
-
 #: apps/remix/app/components/dialogs/document-delete-dialog.tsx
 msgid "\"{documentTitle}\" has been successfully deleted"
 msgstr "Dokument „{documentTitle}” został pomyślnie usunięty"
@@ -352,18 +348,16 @@ msgstr "Sprawdź i {recipientActionVerb} dokument „{1}” utworzony przez  uż
 msgid "{inviterName} on behalf of \"{teamName}\" has invited you to {action} {documentName}"
 msgstr "Sprawdź i {action} dokument „{documentName}” utworzony przez użytkownika {inviterName} z zespołu „{teamName}”"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 代表「{teamName}」邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 代表「{teamName}」邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: packages/email/template-components/template-document-cancel.tsx
 msgid "{inviterName} 已取消文件<0/>「{documentName}」"
 msgstr ""
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: apps/remix/app/components/dialogs/passkey-create-dialog.tsx
@@ -430,9 +424,8 @@ msgstr ""
 msgid "{teamName} has invited you to {action} {documentName}"
 msgstr "Sprawdź i {action} dokument „{documentName}” utworzony przez zespół {teamName}"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{teamName} 邀請您{0}<0/>「{documentName}」"
+msgid "{teamName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: packages/lib/utils/document-audit-logs.ts
@@ -604,6 +597,10 @@ msgstr "{visibleRows, plural, one {# wynik} few {# wyniki} many {# wyników} oth
 
 #: packages/email/template-components/template-document-completed.tsx
 msgid "「{documentName}」已由所有簽署人完成簽署"
+msgstr ""
+
+#: packages/email/template-components/template-document-pending.tsx
+msgid "「{documentName}」您已簽署，尚待其他簽署人"
 msgstr ""
 
 #. placeholder {0}: document.title
@@ -13174,7 +13171,7 @@ msgstr ""
 #. placeholder {0}: envelope.title
 #: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
 #: packages/lib/server-only/document/resend-document.ts
-msgid "您已發起文件「{0}」，請您{recipientActionVerb}。"
+msgid "您已發起文件「{0}」，請您{actionVerbZhHk}。"
 msgstr ""
 
 #: packages/email/template-components/template-document-self-signed.tsx
@@ -13232,7 +13229,7 @@ msgid "提示"
 msgstr ""
 
 #: packages/lib/server-only/document/resend-document.ts
-msgid "提醒：請{recipientActionVerb}您的文件"
+msgid "提醒：請{actionVerbZhHk}您的文件"
 msgstr ""
 
 #: packages/email/template-components/template-document-rejected.tsx
@@ -13333,13 +13330,12 @@ msgstr ""
 msgid "等待其他人"
 msgstr ""
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
-#: packages/email/template-components/template-document-invite.tsx
-msgid "請{0}您的文件<0/>「{documentName}」"
+#: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
+msgid "請{actionVerbZhHk}您的文件"
 msgstr ""
 
-#: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
-msgid "請{recipientActionVerb}您的文件"
+#: packages/email/template-components/template-document-invite.tsx
+msgid "請{actionVerbZhHk}您的文件<0/>「{documentName}」"
 msgstr ""
 
 #: packages/email/template-components/template-document-completed.tsx
