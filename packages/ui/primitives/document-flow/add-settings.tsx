@@ -269,7 +269,7 @@ export const AddSettingsFormPartial = ({
                       <SelectContent>
                         {Object.entries(SUPPORTED_LANGUAGES).map(([code, language]) => (
                           <SelectItem key={code} value={code}>
-                            {t(language.full)}
+                            {language.full}
                           </SelectItem>
                         ))}
                       </SelectContent>

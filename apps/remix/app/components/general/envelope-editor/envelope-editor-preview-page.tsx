@@ -213,16 +213,13 @@ export const EnvelopeEditorPreviewPage = () => {
   // Override the parent renderer provider so we can inject custom fields.
   return (
     <EnvelopeRenderProvider
-      version="current"
       envelope={envelope}
-      envelopeItems={envelope.envelopeItems}
       token={undefined}
       fields={fieldsWithPlaceholders}
       recipients={envelope.recipients.map((recipient) => ({
         ...recipient,
         signingStatus: SigningStatus.SIGNED,
       }))}
-      presignToken={editorConfig?.embedded?.presignToken}
       overrideSettings={{
         mode: 'export',
       }}

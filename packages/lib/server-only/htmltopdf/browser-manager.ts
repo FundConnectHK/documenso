@@ -46,7 +46,9 @@ const getBrowser = async (): Promise<Browser> => {
 };
 
 export const getBaseUrl = (): string => {
-  return USE_INTERNAL_URL_BROWSERLESS ? NEXT_PUBLIC_WEBAPP_URL() : NEXT_PRIVATE_INTERNAL_WEBAPP_URL;
+  return USE_INTERNAL_URL_BROWSERLESS()
+    ? NEXT_PRIVATE_INTERNAL_WEBAPP_URL()
+    : NEXT_PUBLIC_WEBAPP_URL();
 };
 
 type WithPageOptions = {

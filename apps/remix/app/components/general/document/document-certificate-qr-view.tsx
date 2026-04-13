@@ -103,13 +103,11 @@ export const DocumentCertificateQRView = ({
 
       {internalVersion === 2 ? (
         <EnvelopeRenderProvider
-          version="current"
           envelope={{
-            id: envelopeItems[0].envelopeId,
+            envelopeItems,
             status: DocumentStatus.COMPLETED,
             type: EnvelopeType.DOCUMENT,
           }}
-          envelopeItems={envelopeItems}
           token={token}
         >
           <DocumentCertificateQrV2
