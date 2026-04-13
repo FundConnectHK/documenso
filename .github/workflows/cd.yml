@@ -1,10 +1,14 @@
 name: Deploy to Cloud Run
 
+# Fork 分支约定（便于合并上游 Documenso 官方更新）：
+# - main：日常开发与合并 upstream/main，只跑 CI，不触发本部署。
+# - staging：合并/快进到待测的 main 后 push → contract-test（Cloud Run staging）。
+# - release：生产发布（与 deploy.yml「main → release」晋升一致）。
 on:
   push:
     branches:
-      - main # → Staging 环境
-      - release # → Production 环境
+      - staging
+      - release
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -78,7 +82,7 @@ jobs:
           docker push "$IMAGE"
           docker push "$ENV_TAG"
 
-  # ─── 部署到 Staging（main 分支）────────────────────────────────
+  # ─── 部署到 Staging（staging 分支 → contract-test）──────────────
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest

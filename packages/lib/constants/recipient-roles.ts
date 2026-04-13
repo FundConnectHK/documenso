@@ -1,6 +1,7 @@
 import type { MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 import { RecipientRole } from '@prisma/client';
+import { match } from 'ts-pattern';
 
 export const RECIPIENT_ROLES_DESCRIPTION = {
   [RecipientRole.APPROVER]: {
@@ -114,6 +115,19 @@ export const RECIPIENT_ROLES_DESCRIPTION = {
     }),
   },
 } satisfies Record<keyof typeof RecipientRole, unknown>;
+
+/**
+ * Traditional Chinese (Hong Kong) action verb for email copy.
+ * Use where `i18n._(actionVerb).toLowerCase()` would render English (e.g. "sign") despite Chinese UI.
+ */
+export const getRecipientActionVerbZhHk = (role: RecipientRole): string =>
+  match(role)
+    .with(RecipientRole.SIGNER, () => '簽署')
+    .with(RecipientRole.APPROVER, () => '批核')
+    .with(RecipientRole.VIEWER, () => '檢視')
+    .with(RecipientRole.ASSISTANT, () => '協助')
+    .with(RecipientRole.CC, () => '備悉')
+    .exhaustive();
 
 export const RECIPIENT_ROLE_TO_DISPLAY_TYPE = {
   [RecipientRole.SIGNER]: `SIGNING_REQUEST`,

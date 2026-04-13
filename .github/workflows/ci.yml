@@ -2,12 +2,12 @@ name: 'Continuous Integration'
 
 on:
   workflow_call:
-  # PR 时：运行 CI 验证（包含 Docker 构建校验）
+  # PR 合并到这些分支前做验证（含 Docker 构建校验）
   pull_request:
-    branches: ['main']
-  # push 到 main 时：只跑 App 构建，Docker 构建由 cd.yml 负责
+    branches: ['main', 'staging', 'release']
+  # push 后跑 App 构建；部署仅由 cd.yml 在 push 到 staging / release 时执行
   push:
-    branches: ['main']
+    branches: ['main', 'staging', 'release']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
   # 仅在 PR 时验证 Docker 镜像能否成功构建（不推送）
-  # push 到 main 后真正的构建与推送由 cd.yml 完成
+  # push 到 staging / release 后镜像构建与推送由 cd.yml 完成
   build_docker:
     name: Build Docker Image (PR only)
     runs-on: ubuntu-latest

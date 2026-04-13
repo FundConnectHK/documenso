@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { Trans, useLingui } from '@lingui/react/macro';
-import { Link } from 'react-router';
 import { EyeIcon, PencilIcon } from 'lucide-react';
+import { Link } from 'react-router';
 
-import {
-  useCurrentEnvelopeEditor,
-  useDebounceFunction,
-} from '@documenso/lib/client-only/providers/envelope-editor-provider';
+import { useDebounceFunction } from '@documenso/lib/client-only/hooks/use-debounce-function';
+import type { TLocalField } from '@documenso/lib/client-only/hooks/use-editor-fields';
+import { useCurrentEnvelopeEditor } from '@documenso/lib/client-only/providers/envelope-editor-provider';
+import type { TCheckboxFieldMeta } from '@documenso/lib/types/field-meta';
 import { canEnvelopeItemsBeModified } from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
 import type { RichTextEditorRef } from '@documenso/ui/components/rich-text-editor/rich-text-editor';
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@documenso/ui/primitives/card';
+import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,11 +31,6 @@ import {
   DropdownMenuTrigger,
 } from '@documenso/ui/primitives/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@documenso/ui/primitives/tabs';
-import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
-import type { FieldType } from '@prisma/client';
-import type { TCheckboxFieldMeta } from '@documenso/lib/types/field-meta';
-
-import type { TLocalField } from '@documenso/lib/client-only/hooks/use-editor-fields';
 
 const FIELD_PLACEHOLDER_PREFIX = '{{field:';
 const FIELD_PLACEHOLDER_SUFFIX = '}}';
@@ -67,36 +63,29 @@ const RichTextPreview = ({
       );
       return { field, optionIndex: Number.isNaN(optionIndex ?? NaN) ? undefined : optionIndex };
     };
-    return content.replace(
-      new RegExp(FIELD_PLACEHOLDER_REGEX.source, 'g'),
-      (_, fieldId) => {
-        const { field, optionIndex } = getField(fieldId);
-        if (
-          field?.type === 'CHECKBOX' &&
-          optionIndex !== undefined &&
-          optionIndex >= 0
-        ) {
-          const meta = field.fieldMeta as TCheckboxFieldMeta | null | undefined;
-          const values = meta?.values ?? [];
-          const option = values[optionIndex];
-          const isChecked = option?.checked ?? false;
-          const symbol = isChecked ? '&#9745;' : '&#9744;';
-          const title = isChecked ? 'Checked' : 'Unchecked';
-          return `<span class="my-0 inline align-middle text-base" style="color:var(--muted-foreground)" title="${title}">${symbol}</span>`;
-        }
-        const label = field ? i18n._(FRIENDLY_FIELD_TYPE[field.type]) : `field:${fieldId}`;
-        const escaped = label
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
-        return `<span class="text-muted-foreground my-0 inline rounded border border-dashed px-1.5 py-0.5 align-middle text-xs">[${escaped}]</span>`;
-      },
-    );
+    return content.replace(new RegExp(FIELD_PLACEHOLDER_REGEX.source, 'g'), (_, fieldId) => {
+      const { field, optionIndex } = getField(fieldId);
+      if (field?.type === 'CHECKBOX' && optionIndex !== undefined && optionIndex >= 0) {
+        const meta = field.fieldMeta as TCheckboxFieldMeta | null | undefined;
+        const values = meta?.values ?? [];
+        const option = values[optionIndex];
+        const isChecked = option?.checked ?? false;
+        const symbol = isChecked ? '&#9745;' : '&#9744;';
+        const title = isChecked ? 'Checked' : 'Unchecked';
+        return `<span class="my-0 inline align-middle text-base" style="color:var(--muted-foreground)" title="${title}">${symbol}</span>`;
+      }
+      const label = field ? i18n._(FRIENDLY_FIELD_TYPE[field.type]) : `field:${fieldId}`;
+      const escaped = label
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+      return `<span class="text-muted-foreground my-0 inline rounded border border-dashed px-1.5 py-0.5 align-middle text-xs">[${escaped}]</span>`;
+    });
   }, [richTextContent, fieldsForItem, i18n]);
 
   return (
-    <div className="max-w-none rounded-lg border border-border bg-background p-6 text-foreground [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-input [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-input [&_th]:bg-muted/50 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_tr]:border-b [&_tr]:border-input [&_u]:underline [&_ul]:list-disc [&_ul]:pl-6">
+    <div className="max-w-none rounded-lg border border-border bg-background p-6 text-foreground [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-input [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-input [&_th]:bg-muted/50 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_tr]:border-b [&_tr]:border-input [&_u]:underline [&_ul]:list-disc [&_ul]:pl-6">
       <div dangerouslySetInnerHTML={{ __html: htmlWithInlinePlaceholders }} />
     </div>
   );
@@ -149,9 +138,7 @@ export const EnvelopeEditorRichTextPage = () => {
   const onRichTextContentChange = useCallback(
     (envelopeItemId: string, richTextContent: string) => {
       const newItems = envelope.envelopeItems.map((item) =>
-        item.id === envelopeItemId
-          ? { ...item, richTextContent: richTextContent || null }
-          : item,
+        item.id === envelopeItemId ? { ...item, richTextContent: richTextContent || null } : item,
       );
       setLocalEnvelope({ envelopeItems: newItems });
       debouncedUpdateEnvelopeItems(
@@ -164,14 +151,11 @@ export const EnvelopeEditorRichTextPage = () => {
     [envelope.envelopeItems, setLocalEnvelope, debouncedUpdateEnvelopeItems],
   );
 
-  const insertFieldPlaceholder = useCallback(
-    (envelopeItemId: string, fieldId: number | string) => {
-      const placeholder = `${FIELD_PLACEHOLDER_PREFIX}${fieldId}${FIELD_PLACEHOLDER_SUFFIX}`;
-      const ref = editorRefs.current.get(envelopeItemId);
-      ref?.insertAtCursor(placeholder);
-    },
-    [],
-  );
+  const insertFieldPlaceholder = useCallback((envelopeItemId: string, fieldId: number | string) => {
+    const placeholder = `${FIELD_PLACEHOLDER_PREFIX}${fieldId}${FIELD_PLACEHOLDER_SUFFIX}`;
+    const ref = editorRefs.current.get(envelopeItemId);
+    ref?.insertAtCursor(placeholder);
+  }, []);
 
   const envelopeItems = useMemo(
     () => envelope.envelopeItems.sort((a, b) => a.order - b.order),
@@ -243,13 +227,13 @@ export const EnvelopeEditorRichTextPage = () => {
                         <DropdownMenuContent align="end">
                           {fieldsForItem.map((field) => {
                             const displayId = field.id ?? field.formId;
-                            const typeLabel =
-                              i18n._(FRIENDLY_FIELD_TYPE[field.type]) ?? field.type;
-                            const checkboxMeta = field.type === 'CHECKBOX'
-                              ? (field.fieldMeta as {
-                                  values?: { id: number; value: string }[];
-                                } | null)
-                              : null;
+                            const typeLabel = i18n._(FRIENDLY_FIELD_TYPE[field.type]) ?? field.type;
+                            const checkboxMeta =
+                              field.type === 'CHECKBOX'
+                                ? (field.fieldMeta as {
+                                    values?: { id: number; value: string }[];
+                                  } | null)
+                                : null;
                             const checkboxOptions = checkboxMeta?.values ?? [];
 
                             if (field.type === 'CHECKBOX' && checkboxOptions.length > 0) {
@@ -270,10 +254,7 @@ export const EnvelopeEditorRichTextPage = () => {
                                       <DropdownMenuItem
                                         key={idx}
                                         onClick={() =>
-                                          insertFieldPlaceholder(
-                                            item.id,
-                                            `${displayId}:${idx}`,
-                                          )
+                                          insertFieldPlaceholder(item.id, `${displayId}:${idx}`)
                                         }
                                       >
                                         {opt.value || `Option ${idx + 1}`} (ID: {opt.id})

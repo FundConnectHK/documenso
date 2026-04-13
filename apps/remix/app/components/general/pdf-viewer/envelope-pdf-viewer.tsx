@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 
 import type { MessageDescriptor } from '@lingui/core';
 import { Trans, useLingui } from '@lingui/react/macro';
@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@documenso/ui/primitives/al
 
 import type { PDFViewerProps } from './pdf-viewer';
 import PDFViewerLazy from './pdf-viewer-lazy';
+import { PdfViewerLoadingState } from './pdf-viewer-states';
 
 export type EnvelopePdfViewerProps = {
   /**
@@ -27,7 +28,17 @@ export const EnvelopePdfViewer = ({
 
   const $el = useRef<HTMLDivElement>(null);
 
-  const { currentEnvelopeItem, renderError } = useCurrentEnvelopeRender();
+  const { currentEnvelopeItem, getPdfBuffer, renderError } = useCurrentEnvelopeRender();
+
+  const pdfBuffer = currentEnvelopeItem ? getPdfBuffer(currentEnvelopeItem.id) : null;
+
+  const data = useMemo(() => {
+    if (!pdfBuffer || pdfBuffer.status !== 'loaded') {
+      return null;
+    }
+
+    return pdfBuffer.file;
+  }, [pdfBuffer]);
 
   if (renderError || !currentEnvelopeItem) {
     return (
@@ -52,12 +63,35 @@ export const EnvelopePdfViewer = ({
     );
   }
 
+  if (pdfBuffer?.status === 'error') {
+    return (
+      <div ref={$el} className={cn('h-full w-full max-w-[800px]', className)} {...props}>
+        <Alert variant="destructive" className="mb-4 max-w-[800px]">
+          <AlertTitle>
+            {t(errorMessage?.title || PDF_VIEWER_ERROR_MESSAGES.default.title)}
+          </AlertTitle>
+          <AlertDescription>
+            {t(errorMessage?.description || PDF_VIEWER_ERROR_MESSAGES.default.description)}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div ref={$el} className={cn('h-full w-full max-w-[800px]', className)} {...props}>
+        <PdfViewerLoadingState />
+      </div>
+    );
+  }
+
   return (
     <PDFViewerLazy
       key={`${currentEnvelopeItem.envelopeId}-${currentEnvelopeItem.id}`}
       {...props}
       className={cn('h-full w-full max-w-[800px]', className)}
-      data={currentEnvelopeItem.data}
+      data={data}
     />
   );
 };

@@ -17,6 +17,36 @@ import { useRequiredEnvelopeSigningContext } from './envelope-signing-provider';
 
 const FIELD_PLACEHOLDER_REGEX = /\{\{field:([^}]+)\}\}/g;
 
+/**
+ * Prisma `FieldType` enum declaration order — matches serialized numeric indices
+ * when loader/transformer exposes enum as a number instead of a string label.
+ */
+const FIELD_TYPE_ENUM_ORDER: readonly FieldType[] = [
+  FieldType.SIGNATURE,
+  FieldType.FREE_SIGNATURE,
+  FieldType.INITIALS,
+  FieldType.NAME,
+  FieldType.EMAIL,
+  FieldType.DATE,
+  FieldType.TEXT,
+  FieldType.NUMBER,
+  FieldType.RADIO,
+  FieldType.CHECKBOX,
+  FieldType.DROPDOWN,
+] as const;
+
+const coerceFieldType = (type: unknown): FieldType | undefined => {
+  if (typeof type === 'string' && (FIELD_TYPE_ENUM_ORDER as readonly string[]).includes(type)) {
+    return type as FieldType;
+  }
+
+  if (typeof type === 'number' && Number.isInteger(type)) {
+    return FIELD_TYPE_ENUM_ORDER[type];
+  }
+
+  return undefined;
+};
+
 type FieldWithSignature = TFieldSignature & {
   signature?: {
     signatureImageAsBase64: string | null;
@@ -42,6 +72,21 @@ const parseFieldPlaceholder = (value: string) => {
   return { fieldIdOrFormId: value, optionIndex: undefined };
 };
 
+const RichTextCheckboxGlyph = ({ isChecked }: { isChecked: boolean }) => (
+  <span
+    className={cn(
+      'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border align-middle',
+      isChecked
+        ? 'border-primary bg-primary text-primary-foreground'
+        : 'border-input bg-background',
+    )}
+    role="img"
+    aria-label={isChecked ? 'Checked' : 'Unchecked'}
+  >
+    {isChecked ? <CheckIcon className="h-2.5 w-2.5 stroke-[3]" /> : null}
+  </span>
+);
+
 const RichTextInlineField = ({
   fieldIdOrFormId,
   envelopeItemId,
@@ -57,50 +102,56 @@ const RichTextInlineField = ({
   const { fieldIdOrFormId: parsedFieldId, optionIndex } = parseFieldPlaceholder(fieldIdOrFormId);
   const field = useMemo(() => {
     const idNum = parseInt(parsedFieldId, 10);
-    return allFields.find(
-      (f) =>
-        f.envelopeItemId === envelopeItemId &&
-        (!Number.isNaN(idNum) ? f.id === idNum : String(f.id) === parsedFieldId),
-    ) ?? null;
+    return (
+      allFields.find(
+        (f) =>
+          f.envelopeItemId === envelopeItemId &&
+          (!Number.isNaN(idNum) ? f.id === idNum : String(f.id) === parsedFieldId),
+      ) ?? null
+    );
   }, [parsedFieldId, envelopeItemId, allFields]);
+
+  const fieldType = coerceFieldType(field?.type);
 
   if (!field) {
     return (
-      <span className="text-muted-foreground rounded border border-dashed px-1 text-xs">
+      <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
         [field:{fieldIdOrFormId}]
       </span>
     );
   }
 
-  if (
-    (field as { type: FieldType }).type === FieldType.CHECKBOX &&
-    optionIndex !== undefined &&
-    optionIndex >= 0
-  ) {
+  if (fieldType === FieldType.CHECKBOX) {
     const meta = (field as { fieldMeta: unknown }).fieldMeta as
       | TCheckboxFieldMeta
       | null
       | undefined;
     const values = meta?.values ?? [];
-    const option = values[optionIndex];
-    const isChecked = option?.checked ?? false;
+
+    if (optionIndex !== undefined && optionIndex >= 0) {
+      const option = values[optionIndex];
+      const isChecked = Boolean(option?.checked);
+      return <RichTextCheckboxGlyph isChecked={isChecked} />;
+    }
+
+    if (values.length > 0) {
+      return (
+        <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+          {values.map((opt, idx) => (
+            <RichTextCheckboxGlyph key={opt.id ?? idx} isChecked={Boolean(opt.checked)} />
+          ))}
+        </span>
+      );
+    }
+
     return (
-      <span
-        className={cn(
-          'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border align-middle',
-          isChecked
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-input bg-background',
-        )}
-        role="img"
-        aria-label={isChecked ? 'Checked' : 'Unchecked'}
-      >
-        {isChecked ? <CheckIcon className="h-2.5 w-2.5 stroke-[3]" /> : null}
+      <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
+        [checkbox]
       </span>
     );
   }
 
-  if (field.type === FieldType.SIGNATURE) {
+  if (fieldType === FieldType.SIGNATURE) {
     const fieldWithSig = field as FieldWithSignature;
     return (
       <span className="my-1 inline-block min-w-[120px] align-middle">
@@ -148,16 +199,15 @@ const RichTextInlineField = ({
   }
 
   if (field.inserted && field.customText) {
-    return (
-      <span className="rounded bg-muted/30 px-1 py-0.5 text-sm">
-        {field.customText}
-      </span>
-    );
+    return <span className="rounded bg-muted/30 px-1 py-0.5 text-sm">{field.customText}</span>;
   }
 
+  const fallbackLabel =
+    fieldType ?? (typeof field.type === 'string' ? field.type : `type:${String(field.type)}`);
+
   return (
-    <span className="text-muted-foreground rounded border border-dashed px-1 text-xs">
-      [{field.type}]
+    <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
+      [{fallbackLabel}]
     </span>
   );
 };
@@ -190,12 +240,7 @@ export const RichTextSigningView = ({
         ? selectedAssistantRecipientFields.filter((f) => f.envelopeItemId === envelopeItemId)
         : recipientFields.filter((f) => f.envelopeItemId === envelopeItemId);
     return fields as FieldWithSignature[];
-  }, [
-    recipient.role,
-    envelopeItemId,
-    recipientFields,
-    selectedAssistantRecipientFields,
-  ]);
+  }, [recipient.role, envelopeItemId, recipientFields, selectedAssistantRecipientFields]);
 
   const allSignatureFields = allFieldsForItem.filter((f) => f.type === FieldType.SIGNATURE);
   const signatureFields = (() => {
@@ -297,7 +342,7 @@ export const RichTextSigningView = ({
 
   return (
     <div className="flex w-full max-w-3xl flex-col pb-32 lg:pb-0">
-      <div className="max-w-none rounded-lg border border-border bg-background p-6 text-foreground [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-input [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-input [&_th]:bg-muted/50 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_tr]:border-b [&_tr]:border-input [&_u]:underline [&_ul]:list-disc [&_ul]:pl-6">
+      <div className="max-w-none rounded-lg border border-border bg-background p-6 text-foreground [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-input [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-input [&_th]:bg-muted/50 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-medium [&_tr]:border-b [&_tr]:border-input [&_u]:underline [&_ul]:list-disc [&_ul]:pl-6">
         {hasInlinePlaceholders ? (
           segments.map((seg, i) =>
             seg.type === 'html' ? (
@@ -338,14 +383,16 @@ export const RichTextSigningView = ({
                   </div>
                 )}
                 <div className="mb-2 text-xs text-muted-foreground">
-                  {(field.fieldMeta as { richTextSigningAreaLabel?: string } | null)?.richTextSigningAreaLabel?.trim() ||
+                  {(
+                    field.fieldMeta as { richTextSigningAreaLabel?: string } | null
+                  )?.richTextSigningAreaLabel?.trim() ||
                     field.customText?.trim() ||
                     t`Signature`}
                 </div>
                 {field.inserted && fieldWithSignature.signature ? (
                   <button
                     type="button"
-                    onClick={() => handleSignClick(fieldWithSignature as TFieldSignature)}
+                    onClick={async () => handleSignClick(fieldWithSignature as TFieldSignature)}
                     disabled={isFieldSigning}
                     className="flex h-24 w-full items-center justify-center rounded-md border border-transparent transition-colors hover:border-border hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50"
                     title={t`Click to remove signature`}
@@ -366,7 +413,7 @@ export const RichTextSigningView = ({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleSignClick(fieldWithSignature as TFieldSignature)}
+                    onClick={async () => handleSignClick(fieldWithSignature as TFieldSignature)}
                     disabled={isFieldSigning}
                     className="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-white transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
                   >

@@ -17,6 +17,8 @@
     "clean": "rimraf node_modules"
   },
   "dependencies": {
+    "@cantoo/pdf-lib": "^2.5.3",
+    "@libpdf/core": "^0.3.3",
     "@ai-sdk/google-vertex": "3.0.81",
     "@aws-sdk/client-s3": "^3.998.0",
     "@aws-sdk/client-sesv2": "^3.998.0",

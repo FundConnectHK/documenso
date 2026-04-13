@@ -27,17 +27,17 @@ export const TemplateDocumentCompleted = ({
       <Section>
         <Section className="mb-4">
           <Column align="center">
-            <Text className="text-base font-semibold text-[#7AC455]">
-              <Img
+            <Text className="text-base font-semibold text-[#b30000]">
+              {/* <Img
                 src={getAssetUrl('/static/completed.png')}
                 className="-mt-0.5 mr-2 inline h-7 w-7 align-middle"
-              />
+              /> */}
               <Trans>已完成</Trans>
             </Text>
           </Column>
         </Section>
 
-        <Text className="mb-0 text-center text-lg font-semibold text-primary">
+        <Text className="mb-0 text-center text-lg font-semibold text-[#b30000]">
           {customBody || <Trans>「{documentName}」已由所有簽署人完成簽署</Trans>}
         </Text>
 

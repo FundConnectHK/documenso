@@ -280,6 +280,8 @@ export const ZEditorEnvelopeSchema = EnvelopeSchema.pick({
     title: true,
     order: true,
     documentDataId: true,
+    richTextContent: true,
+    richTextSignatureFieldId: true,
   })
     .extend({
       // Only used for embedded.

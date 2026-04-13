@@ -1,9 +1,8 @@
-import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { OrganisationType, RecipientRole } from '@prisma/client';
 import { P, match } from 'ts-pattern';
 
-import { RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
+import { getRecipientActionVerbZhHk } from '@documenso/lib/constants/recipient-roles';
 
 import { Button, Section, Text } from '../components';
 import { TemplateDocumentImage } from './template-document-image';
@@ -32,20 +31,18 @@ export const TemplateDocumentInvite = ({
   includeSenderDetails,
   organisationType,
 }: TemplateDocumentInviteProps) => {
-  const { _ } = useLingui();
-
-  const { actionVerb } = RECIPIENT_ROLES_DESCRIPTION[role];
+  const actionVerbZhHk = getRecipientActionVerbZhHk(role);
 
   return (
     <>
       <TemplateDocumentImage className="mt-6" assetBaseUrl={assetBaseUrl} />
 
       <Section>
-        <Text className="mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold text-primary">
+        <Text className="mx-auto mb-0 max-w-[80%] text-center text-lg font-semibold text-[#b30000]">
           {match({ selfSigner, organisationType, includeSenderDetails, teamName })
             .with({ selfSigner: true }, () => (
               <Trans>
-                請{_(actionVerb).toLowerCase()}您的文件
+                請{actionVerbZhHk}您的文件
                 <br />「{documentName}」
               </Trans>
             ))
@@ -57,20 +54,20 @@ export const TemplateDocumentInvite = ({
               },
               () => (
                 <Trans>
-                  {inviterName} 代表「{teamName}」邀請您{_(actionVerb).toLowerCase()}
+                  {inviterName} 代表「{teamName}」邀請您{actionVerbZhHk}
                   <br />「{documentName}」
                 </Trans>
               ),
             )
             .with({ organisationType: OrganisationType.ORGANISATION, teamName: P.string }, () => (
               <Trans>
-                {teamName} 邀請您{_(actionVerb).toLowerCase()}
+                {teamName} 邀請您{actionVerbZhHk}
                 <br />「{documentName}」
               </Trans>
             ))
             .otherwise(() => (
               <Trans>
-                {inviterName} 邀請您{_(actionVerb).toLowerCase()}
+                {inviterName} 邀請您{actionVerbZhHk}
                 <br />「{documentName}」
               </Trans>
             ))}

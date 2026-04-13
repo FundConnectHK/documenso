@@ -16,6 +16,7 @@ import { resolveExpiresAt } from '@documenso/lib/constants/envelope-expiration';
 import {
   RECIPIENT_ROLES_DESCRIPTION,
   RECIPIENT_ROLE_TO_EMAIL_TYPE,
+  getRecipientActionVerbZhHk,
 } from '@documenso/lib/constants/recipient-roles';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import type { ApiRequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
@@ -165,10 +166,10 @@ export const resendDocument = async ({
       let emailSubject = i18n._(msg`Reminder: Please ${recipientActionVerb} this document`);
 
       if (selfSigner) {
-        emailMessage = i18n._(
-          msg`You have initiated the document ${`"${envelope.title}"`} that requires you to ${recipientActionVerb} it.`,
-        );
-        emailSubject = i18n._(msg`Reminder: Please ${recipientActionVerb} your document`);
+        const actionVerbZhHk = getRecipientActionVerbZhHk(recipient.role);
+
+        emailMessage = i18n._(msg`您已發起文件「${envelope.title}」，請您${actionVerbZhHk}。`);
+        emailSubject = i18n._(msg`提醒：請${actionVerbZhHk}您的文件`);
       }
 
       if (organisationType === OrganisationType.ORGANISATION) {

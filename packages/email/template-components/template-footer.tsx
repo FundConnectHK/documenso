@@ -16,7 +16,7 @@ export const TemplateFooter = ({ isDocument = true }: TemplateFooterProps) => {
         <Text className="my-4 text-base text-slate-400">
           <Trans>
             此文件由{' '}
-            <Link className="text-[#7AC455]" href={branding.brandingUrl || '#'}>
+            <Link className="text-[#b30000]" href={branding.brandingUrl || '#'}>
               香港資管通 FundConnectHK
             </Link>{' '}
             發送

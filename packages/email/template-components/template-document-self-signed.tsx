@@ -29,7 +29,7 @@ export const TemplateDocumentSelfSigned = ({
       <Section className="flex-row items-center justify-center">
         <Section>
           <Column align="center">
-            <Text className="text-base font-semibold text-[#7AC455]">
+            <Text className="text-base font-semibold text-[#b30000]">
               <Img
                 src={getAssetUrl('/static/completed.png')}
                 className="-mt-0.5 mr-2 inline h-7 w-7 align-middle"
@@ -39,7 +39,7 @@ export const TemplateDocumentSelfSigned = ({
           </Column>
         </Section>
 
-        <Text className="mb-0 mt-6 text-center text-lg font-semibold text-primary">
+        <Text className="mb-0 mt-6 text-center text-lg font-semibold text-[#b30000]">
           <Trans>您已簽署「{documentName}」</Trans>
         </Text>
 

@@ -58,6 +58,9 @@ export const signupErrorMessages: Record<string, MessageDescriptor> = {
   [AppErrorCode.INVALID_REQUEST]: msg`We were unable to create your account. Please review the information you provided and try again.`,
 };
 
+/** @deprecated Use `signupErrorMessages`; kept for imports that expect the legacy name. */
+export const SIGNUP_ERROR_MESSAGES = signupErrorMessages;
+
 export type TSignUpFormSchema = z.infer<typeof ZSignUpFormSchema>;
 
 export type SignUpFormProps = {

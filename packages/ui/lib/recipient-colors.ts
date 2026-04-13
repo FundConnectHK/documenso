@@ -1,6 +1,15 @@
 import { colord } from 'colord';
 import { once } from 'remeda';
 
+export const AVAILABLE_RECIPIENT_COLORS = [
+  'green',
+  'blue',
+  'purple',
+  'orange',
+  'yellow',
+  'pink',
+] as const;
+
 export type TRecipientColor = 'readOnly' | (typeof AVAILABLE_RECIPIENT_COLORS)[number];
 
 export type RecipientColorStyles = {
@@ -76,8 +85,6 @@ const CSS_VARIANT = {
   groupHoverFieldItem: 'group-hover/field-item',
   hover: 'hover',
 };
-
-const AVAILABLE_RECIPIENT_COLORS = ['green', 'blue', 'purple', 'orange', 'yellow', 'pink'] as const;
 
 export const RECIPIENT_DYNAMIC_CLASS = {
   pattern: new RegExp(

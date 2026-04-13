@@ -298,3 +298,17 @@ export const getEnvelopeItemPermissions = (
     }))
     .exhaustive();
 };
+
+/**
+ * Whether envelope items (pages) may be updated (title/order/file/rich text, per server rules).
+ */
+export const canEnvelopeItemsBeModified = (
+  envelope: Pick<Envelope, 'completedAt' | 'deletedAt' | 'type' | 'status'>,
+  recipients: Recipient[],
+): boolean => {
+  const permissions = getEnvelopeItemPermissions(envelope, recipients);
+
+  return (
+    permissions.canTitleBeChanged || permissions.canFileBeChanged || permissions.canOrderBeChanged
+  );
+};

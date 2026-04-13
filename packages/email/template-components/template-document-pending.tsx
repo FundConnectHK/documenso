@@ -23,7 +23,7 @@ export const TemplateDocumentPending = ({
       <Section>
         <Section className="mb-4">
           <Column align="center">
-            <Text className="text-base font-semibold text-blue-500">
+            <Text className="text-base font-semibold text-[#b30000]">
               <Img
                 src={getAssetUrl('/static/clock.png')}
                 className="-mt-0.5 mr-2 inline h-7 w-7 align-middle"
@@ -33,8 +33,8 @@ export const TemplateDocumentPending = ({
           </Column>
         </Section>
 
-        <Text className="mb-0 text-center text-lg font-semibold text-primary">
-          <Trans>“{documentName}” has been signed</Trans>
+        <Text className="mb-0 text-center text-lg font-semibold text-[#b30000]">
+          <Trans>「{documentName}」您已簽署，尚待其他簽署人</Trans>
         </Text>
 
         <Text className="mx-auto mb-6 mt-1 max-w-[80%] text-center text-base text-slate-400">

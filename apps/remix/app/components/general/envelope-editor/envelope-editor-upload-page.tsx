@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
@@ -11,10 +11,8 @@ import { ErrorCode as DropzoneErrorCode, type FileRejection } from 'react-dropzo
 import { Link } from 'react-router';
 
 import { useLimits } from '@documenso/ee/server-only/limits/provider/client';
-import {
-  useCurrentEnvelopeEditor,
-  useDebounceFunction,
-} from '@documenso/lib/client-only/providers/envelope-editor-provider';
+import { useDebounceFunction } from '@documenso/lib/client-only/hooks/use-debounce-function';
+import { useCurrentEnvelopeEditor } from '@documenso/lib/client-only/providers/envelope-editor-provider';
 import { useCurrentOrganisation } from '@documenso/lib/client-only/providers/organisation';
 import { APP_DOCUMENT_UPLOAD_SIZE_LIMIT } from '@documenso/lib/constants/app';
 import { nanoid } from '@documenso/lib/universal/id';

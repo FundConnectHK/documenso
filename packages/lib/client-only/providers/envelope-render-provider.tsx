@@ -10,6 +10,17 @@ import type { TEnvelope } from '../../types/envelope';
 import type { FieldRenderMode } from '../../universal/field-renderer/render-field';
 import { getEnvelopeItemPdfUrl } from '../../utils/envelope-download';
 
+export type ImageLoadingState = 'loading' | 'loaded' | 'error';
+
+export type PageRenderData = {
+  scale: number;
+  pageIndex: number;
+  pageNumber: number;
+  pageWidth: number;
+  pageHeight: number;
+  imageLoadingState: ImageLoadingState;
+};
+
 type FileData =
   | {
       status: 'loading' | 'error';

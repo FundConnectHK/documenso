@@ -20,6 +20,7 @@ import { NEXT_PUBLIC_WEBAPP_URL } from '../../../constants/app';
 import {
   RECIPIENT_ROLES_DESCRIPTION,
   RECIPIENT_ROLE_TO_EMAIL_TYPE,
+  getRecipientActionVerbZhHk,
 } from '../../../constants/recipient-roles';
 import { getEmailContext } from '../../../server-only/email/get-email-context';
 import { DOCUMENT_AUDIT_LOG_TYPE } from '../../../types/document-audit-logs';
@@ -121,10 +122,10 @@ export const run = async ({
   let emailSubject = i18n._(msg`Please ${recipientActionVerb} this document`);
 
   if (selfSigner) {
-    emailMessage = i18n._(
-      msg`You have initiated the document ${`"${envelope.title}"`} that requires you to ${recipientActionVerb} it.`,
-    );
-    emailSubject = i18n._(msg`Please ${recipientActionVerb} your document`);
+    const actionVerbZhHk = getRecipientActionVerbZhHk(recipient.role);
+
+    emailMessage = i18n._(msg`您已發起文件「${envelope.title}」，請您${actionVerbZhHk}。`);
+    emailSubject = i18n._(msg`請${actionVerbZhHk}您的文件`);
   }
 
   if (isDirectTemplate) {
