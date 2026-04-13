@@ -24,7 +24,6 @@ jobs:
     outputs:
       environment: ${{ steps.vars.outputs.environment }}
       cloud_run_service: ${{ steps.vars.outputs.cloud_run_service }}
-      image: ${{ steps.vars.outputs.image }}
     steps:
       - name: Determine deployment target
         id: vars
@@ -47,14 +46,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${IMAGE:-}" ]; then
-            echo "ERROR: IMAGE is empty in setup job"
-            exit 1
-          fi
-
           echo "environment=${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
           echo "cloud_run_service=${SERVICE}" >> "$GITHUB_OUTPUT"
-          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
           echo "resolved ref=${GITHUB_REF_NAME}"
           echo "resolved env=${ENVIRONMENT}"
@@ -92,12 +85,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          IMAGE="${{ needs.setup.outputs.image }}"
+          IMAGE="${GAR_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
           ENV_TAG="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.environment }}-latest"
 
           if [ -z "${IMAGE:-}" ]; then
-            echo "ERROR: setup output image is empty"
-            echo "setup environment='${{ needs.setup.outputs.environment }}'"
+            echo "ERROR: IMAGE is empty in build-and-push job"
             exit 1
           fi
 
@@ -141,7 +133,7 @@ jobs:
         with:
           service: contract-service-staging
           region: ${{ env.GAR_REGION }}
-          image: ${{ needs.setup.outputs.image }}
+          image: ${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: >-
             --allow-unauthenticated
             --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-staging
@@ -196,7 +188,7 @@ jobs:
         with:
           service: contract-service-prod
           region: ${{ env.GAR_REGION }}
-          image: ${{ needs.setup.outputs.image }}
+          image: ${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: >-
             --allow-unauthenticated
             --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-prod
