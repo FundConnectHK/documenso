@@ -23,7 +23,7 @@ import { SignFieldNumberDialog } from '~/components/dialogs/sign-field-number-di
 import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signature-dialog';
 import { SignFieldTextDialog } from '~/components/dialogs/sign-field-text-dialog';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
-import EnvelopeSignerPageRenderer from '~/components/general/envelope-signing/envelope-signer-page-renderer';
+import { EnvelopeSignerPageRenderer } from '~/components/general/envelope-signing/envelope-signer-page-renderer';
 import { EnvelopePdfViewer } from '~/components/general/pdf-viewer/envelope-pdf-viewer';
 
 import { DocumentSigningAttachmentsPopover } from '../document-signing/document-signing-attachments-popover';

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 
-import type { Field, Recipient } from '@prisma/client';
+import type { EnvelopeItem, Field, Recipient } from '@prisma/client';
 
 import type { TRecipientColor } from '@documenso/ui/lib/recipient-colors';
 import { AVAILABLE_RECIPIENT_COLORS } from '@documenso/ui/lib/recipient-colors';
@@ -36,7 +36,11 @@ type EnvelopeRenderOverrideSettings = {
   showRecipientSigningStatus?: boolean;
 };
 
-type EnvelopeRenderItem = TEnvelope['envelopeItems'][number];
+type EnvelopeRenderItem = Pick<EnvelopeItem, 'id' | 'envelopeId' | 'title' | 'order'> & {
+  richTextContent?: string | null;
+  richTextSignatureFieldId?: number | null;
+  documentDataId?: string;
+};
 
 type EnvelopeRenderProviderValue = {
   getPdfBuffer: (envelopeItemId: string) => FileData | null;
@@ -57,7 +61,10 @@ type EnvelopeRenderProviderValue = {
 interface EnvelopeRenderProviderProps {
   children: React.ReactNode;
 
-  envelope: Pick<TEnvelope, 'envelopeItems' | 'status' | 'type'>;
+  envelope: Pick<TEnvelope, 'status' | 'type'> & {
+    id?: string;
+    envelopeItems: EnvelopeRenderItem[];
+  };
 
   /**
    * Optional fields which are passed down to renderers for custom rendering needs.

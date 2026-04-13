@@ -14,13 +14,10 @@ export const EnvelopeEditorRenderProviderWrapper = ({
 
   return (
     <EnvelopeRenderProvider
-      version="current"
       envelope={envelope}
-      envelopeItems={envelope.envelopeItems}
       fields={envelope.fields}
       recipients={envelope.recipients}
       token={token}
-      presignToken={presignedToken}
     >
       {children}
     </EnvelopeRenderProvider>

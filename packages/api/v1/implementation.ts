@@ -799,7 +799,6 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
           title: body.title,
         },
         attachments: body.attachments,
-        formValues: body.formValues,
         requestMetadata: metadata,
       });
 
@@ -916,7 +915,6 @@ export const ApiContractV1Implementation = tsr.router(ApiContractV1, {
             title: body.title,
             ...body.meta,
           },
-          formValues: body.formValues,
           requestMetadata: metadata,
         });
       } catch (err) {

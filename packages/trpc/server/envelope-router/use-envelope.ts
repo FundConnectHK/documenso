@@ -150,7 +150,6 @@ export const useEnvelopeRoute = authenticatedProcedure
       prefillFields,
       override,
       attachments,
-      formValues,
     });
 
     // Distribute document if requested

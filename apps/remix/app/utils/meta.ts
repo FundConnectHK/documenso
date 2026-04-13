@@ -1,12 +1,27 @@
+import type { MessageDescriptor } from '@lingui/core';
+
 import { NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
 
-export const appMetaTags = (title?: string) => {
+const resolveMetaTitle = (title?: string | MessageDescriptor) => {
+  if (!title) {
+    return undefined;
+  }
+
+  if (typeof title === 'string') {
+    return title;
+  }
+
+  return title.message;
+};
+
+export const appMetaTags = (title?: string | MessageDescriptor) => {
+  const resolvedTitle = resolveMetaTitle(title);
   const description =
     '资管通合同管理平台 - 专业的电子文档签署与合同管理系统，为香港资管通提供安全、高效、合规的合同全生命周期管理服务。';
 
   return [
     {
-      title: title ? `${title} - 资管通合同管理平台` : '资管通合同管理平台',
+      title: resolvedTitle ? `${resolvedTitle} - 资管通合同管理平台` : '资管通合同管理平台',
     },
     {
       name: 'description',
