@@ -84,7 +84,7 @@ export function AppCommandMenu({ open, onOpenChange }: AppCommandMenuProps) {
     );
 
   const { data: searchTemplatesData, isFetching: isFetchingTemplates } =
-    trpcReact.template.search.useQuery(
+    trpcReact.template.findTemplates.useQuery(
       {
         query: debouncedSearch,
       },
@@ -160,11 +160,11 @@ export function AppCommandMenu({ open, onOpenChange }: AppCommandMenuProps) {
       : [];
 
   const templateSearchResults =
-    hasValidSearch && searchTemplatesData
-      ? searchTemplatesData.map((template) => ({
+    hasValidSearch && searchTemplatesData && teamUrl
+      ? searchTemplatesData.data.map((template: { id: number; title: string }) => ({
           label: template.title,
-          path: template.path,
-          value: template.value,
+          path: `/t/${teamUrl}/templates/${template.id}`,
+          value: template.title,
         }))
       : [];
 

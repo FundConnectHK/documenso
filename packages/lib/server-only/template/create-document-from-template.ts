@@ -46,7 +46,6 @@ import type { ApiRequestMetadata } from '../../universal/extract-request-metadat
 import { getFileServerSide } from '../../universal/upload/get-file.server';
 import { putPdfFileServerSide } from '../../universal/upload/put-file.server';
 import { extractDerivedDocumentMeta } from '../../utils/document';
-import { toCheckboxCustomText, toRadioCustomText } from '../../utils/fields';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import {
   createDocumentAuthOptions,
@@ -55,6 +54,7 @@ import {
 } from '../../utils/document-auth';
 import type { EnvelopeIdOptions } from '../../utils/envelope';
 import { mapSecondaryIdToTemplateId } from '../../utils/envelope';
+import { toCheckboxCustomText, toRadioCustomText } from '../../utils/fields';
 import { buildTeamWhereQuery } from '../../utils/teams';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { incrementDocumentId } from '../envelope/increment-id';
@@ -222,9 +222,7 @@ const getUpdatedFieldMeta = (field: Field, prefillField?: TFieldMetaPrefillField
 
       const newValues = radioMeta.values?.map((option) => ({
         ...option,
-        checked: useValueById
-          ? option.id === field.valueById
-          : option.value === field.value,
+        checked: useValueById ? option.id === field.valueById : option.value === field.value,
       }));
 
       const meta: TRadioFieldMeta = {
@@ -476,13 +474,7 @@ export const createDocumentFromTemplate = async ({
         arrayBuffer: async () => Promise.resolve(buffer),
       });
 
-      const newDocumentData = await prisma.documentData.create({
-        data: {
-          type: duplicatedFile.type,
-          data: duplicatedFile.data,
-          initialData: duplicatedFile.initialData,
-        },
-      });
+      const newDocumentData = duplicatedFile.documentData;
 
       const newEnvelopeItemId = prefixedId('envelope_item');
 
@@ -650,7 +642,6 @@ export const createDocumentFromTemplate = async ({
           });
         }
       }
-
     }
 
     Object.values(finalRecipients).forEach(({ token, fields }) => {
@@ -732,7 +723,10 @@ export const createDocumentFromTemplate = async ({
                     payload.customText = meta.value;
                     payload.inserted = true;
                     payload.displayValueForRichText = meta.value;
-                  } else if (selector.type === 'dropdown' && typeof meta.defaultValue === 'string') {
+                  } else if (
+                    selector.type === 'dropdown' &&
+                    typeof meta.defaultValue === 'string'
+                  ) {
                     payload.customText = meta.defaultValue;
                     payload.inserted = true;
                     payload.displayValueForRichText = meta.defaultValue;
@@ -754,7 +748,9 @@ export const createDocumentFromTemplate = async ({
                     if (indices.length > 0) {
                       const checkedValues = meta.values
                         .filter((v: { checked?: boolean }) => v?.checked)
-                        .map((v: { value?: string }) => (typeof v?.value === 'string' ? v.value : ''))
+                        .map((v: { value?: string }) =>
+                          typeof v?.value === 'string' ? v.value : '',
+                        )
                         .filter(Boolean)
                         .join(', ');
                       payload.customText = toCheckboxCustomText(indices);

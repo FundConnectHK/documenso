@@ -163,7 +163,6 @@ export const getEnvelopeForDirectTemplateSigning = async ({
     isRecipientsTurn: true,
     isCompleted: false,
     isRejected: false,
-    isExpired: false,
     sender,
     settings: {
       includeSenderDetails: settings.includeSenderDetails,

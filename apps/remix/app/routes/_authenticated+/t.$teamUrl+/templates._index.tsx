@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { msg } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { EnvelopeType, OrganisationType } from '@prisma/client';
+import { EnvelopeType, OrganisationType, TemplateType } from '@prisma/client';
 import { Bird } from 'lucide-react';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { useParams, useSearchParams } from 'react-router';
@@ -77,10 +77,11 @@ export default function TemplatesPage() {
     },
   );
 
-  const orgTemplatesQuery = trpc.template.findOrganisationTemplates.useQuery(
+  const orgTemplatesQuery = trpc.template.findTemplates.useQuery(
     {
       page,
       perPage,
+      type: TemplateType.ORGANISATION,
     },
     {
       enabled: isOrgView,

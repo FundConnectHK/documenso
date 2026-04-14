@@ -202,7 +202,8 @@ async function handleV2Loader({ params, request }: Route.LoaderArgs) {
     );
   }
 
-  const { envelope, recipient, isRecipientsTurn, isExpired } = envelopeForSigning;
+  const { envelope, recipient, isRecipientsTurn } = envelopeForSigning;
+  const isExpired = recipient.expired;
 
   const organisationClaim = await getOrganisationClaimByTeamId({ teamId: envelope.teamId });
 
@@ -405,12 +406,7 @@ const EmbedSignDocumentPageV2 = ({
         recipient={recipient}
         user={user}
       >
-        <EnvelopeRenderProvider
-          version="current"
-          envelope={envelope}
-          envelopeItems={envelope.envelopeItems}
-          token={token}
-        >
+        <EnvelopeRenderProvider envelope={envelope} token={token}>
           <EmbedSignDocumentV2ClientPage
             hidePoweredBy={hidePoweredBy}
             allowWhitelabelling={allowEmbedSigningWhitelabel}
