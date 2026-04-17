@@ -159,6 +159,9 @@ jobs:
             NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
             NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
             NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
+            NEXT_PRIVATE_SIGNING_TRANSPORT=local
+            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=${{ secrets.NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS }}
+            NEXT_PRIVATE_SIGNING_PASSPHRASE=${{ secrets.NEXT_PRIVATE_SIGNING_PASSPHRASE }}
 
       - name: Show Staging URL
         run: echo "Staging deployed to ${{ steps.deploy.outputs.url }}"
@@ -214,6 +217,9 @@ jobs:
             NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
             NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
             NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
+            NEXT_PRIVATE_SIGNING_TRANSPORT=local
+            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=${{ secrets.NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS }}
+            NEXT_PRIVATE_SIGNING_PASSPHRASE=${{ secrets.NEXT_PRIVATE_SIGNING_PASSPHRASE }}
 
       - name: Show Production URL
         run: echo "Production deployed to ${{ steps.deploy.outputs.url }}"
