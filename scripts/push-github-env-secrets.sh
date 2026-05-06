@@ -46,10 +46,16 @@ staging_db_url="postgres://documenso:${STAGING_DB_PASSWORD}@/documenso?host=/clo
 prod_db_url="postgres://documenso:${PROD_DB_PASSWORD}@/documenso?host=/cloudsql/${prod_socket}"
 
 EXISTING_NAMES=""
+EXISTING_VARIABLE_NAMES=""
 
 list_existing_secret_names() {
   local env_name="$1"
   gh secret list --env "$env_name" -R "$GITHUB_REPO" --json name -q '.[].name' 2>/dev/null | sort -u || true
+}
+
+list_existing_variable_names() {
+  local env_name="$1"
+  gh variable list --env "$env_name" -R "$GITHUB_REPO" --json name -q '.[].name' 2>/dev/null | sort -u || true
 }
 
 begin_environment() {
@@ -57,6 +63,7 @@ begin_environment() {
   echo ""
   echo "==> $env_name: existing secrets loaded (resume mode skips duplicates)"
   EXISTING_NAMES="$(list_existing_secret_names "$env_name")"
+  EXISTING_VARIABLE_NAMES="$(list_existing_variable_names "$env_name")"
 }
 
 put_env_secret() {
@@ -71,6 +78,20 @@ put_env_secret() {
 
   printf '%s' "$value" | gh secret set "$name" --env "$env_name" -R "$GITHUB_REPO"
   echo "set   $env_name  $name"
+}
+
+put_env_variable() {
+  local env_name="$1"
+  local name="$2"
+  local value="$3"
+
+  if [[ "$FORCE" -eq 0 ]] && printf '%s\n' "$EXISTING_VARIABLE_NAMES" | grep -qxF "$name"; then
+    echo "skip  $env_name  $name (variable)"
+    return 0
+  fi
+
+  gh variable set "$name" --env "$env_name" -R "$GITHUB_REPO" --body "$value"
+  echo "set   $env_name  $name (variable)"
 }
 
 echo "Repository: $GITHUB_REPO"
@@ -91,6 +112,9 @@ put_env_secret staging NEXT_PUBLIC_WEBAPP_URL "$staging_url"
 put_env_secret staging NEXT_PRIVATE_INTERNAL_WEBAPP_URL "$staging_url"
 put_env_secret staging NEXT_PRIVATE_DATABASE_URL "$staging_db_url"
 put_env_secret staging NEXT_PRIVATE_DIRECT_DATABASE_URL "$staging_db_url"
+put_env_variable staging NEXT_PRIVATE_JOBS_PROVIDER "bullmq"
+put_env_variable staging NEXT_PRIVATE_REDIS_URL "${STAGING_NEXT_PRIVATE_REDIS_URL}"
+put_env_variable staging NEXT_PRIVATE_BULLMQ_CONCURRENCY "${STAGING_NEXT_PRIVATE_BULLMQ_CONCURRENCY:-1}"
 put_env_secret staging NEXTAUTH_SECRET "${STAGING_NEXTAUTH_SECRET}"
 put_env_secret staging NEXT_PRIVATE_ENCRYPTION_KEY "${STAGING_NEXT_PRIVATE_ENCRYPTION_KEY}"
 put_env_secret staging NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY "${STAGING_NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY}"
@@ -116,6 +140,9 @@ put_env_secret production NEXT_PUBLIC_WEBAPP_URL "$prod_url"
 put_env_secret production NEXT_PRIVATE_INTERNAL_WEBAPP_URL "$prod_url"
 put_env_secret production NEXT_PRIVATE_DATABASE_URL "$prod_db_url"
 put_env_secret production NEXT_PRIVATE_DIRECT_DATABASE_URL "$prod_db_url"
+put_env_variable production NEXT_PRIVATE_JOBS_PROVIDER "bullmq"
+put_env_variable production NEXT_PRIVATE_REDIS_URL "${PROD_NEXT_PRIVATE_REDIS_URL}"
+put_env_variable production NEXT_PRIVATE_BULLMQ_CONCURRENCY "${PROD_NEXT_PRIVATE_BULLMQ_CONCURRENCY:-1}"
 put_env_secret production NEXTAUTH_SECRET "${PROD_NEXTAUTH_SECRET}"
 put_env_secret production NEXT_PRIVATE_ENCRYPTION_KEY "${PROD_NEXT_PRIVATE_ENCRYPTION_KEY}"
 put_env_secret production NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY "${PROD_NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY}"
