@@ -137,6 +137,8 @@ jobs:
           flags: >-
             --allow-unauthenticated
             --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-staging
+            --vpc-connector=redis-connector-ew1
+            --vpc-egress=private-ranges-only
           env_vars: |
             NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
             NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
@@ -198,6 +200,8 @@ jobs:
           flags: >-
             --allow-unauthenticated
             --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-prod
+            --vpc-connector=redis-connector-ew1
+            --vpc-egress=private-ranges-only
           env_vars: |
             NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
             NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
