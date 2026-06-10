@@ -1,6 +1,9 @@
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { getEnvelopeWhereInput } from '@documenso/lib/server-only/envelope/get-envelope-by-id';
-import { canEnvelopeItemsBeModified } from '@documenso/lib/utils/envelope';
+import {
+  canEnvelopeItemsBeModified,
+  getEnvelopeItemPermissions,
+} from '@documenso/lib/utils/envelope';
 import { prisma } from '@documenso/prisma';
 
 import { authenticatedProcedure } from '../trpc';
@@ -54,7 +57,24 @@ export const updateEnvelopeItemsRoute = authenticatedProcedure
       });
     }
 
-    if (!canEnvelopeItemsBeModified(envelope, envelope.recipients)) {
+    const envelopeItemPermissions = getEnvelopeItemPermissions(envelope, envelope.recipients);
+
+    const isSigningViewModeOnlyUpdate = data.every(
+      (item) =>
+        item.order === undefined &&
+        item.title === undefined &&
+        item.richTextContent === undefined &&
+        item.richTextSignatureFieldId === undefined &&
+        item.signingViewMode !== undefined,
+    );
+
+    if (isSigningViewModeOnlyUpdate) {
+      if (!envelopeItemPermissions.canSigningViewModeBeChanged) {
+        throw new AppError(AppErrorCode.INVALID_REQUEST, {
+          message: 'Signing view mode is not editable',
+        });
+      }
+    } else if (!canEnvelopeItemsBeModified(envelope, envelope.recipients)) {
       throw new AppError(AppErrorCode.INVALID_REQUEST, {
         message: 'Envelope item is not editable',
       });
@@ -73,12 +93,20 @@ export const updateEnvelopeItemsRoute = authenticatedProcedure
 
     const updatedEnvelopeItems = await Promise.all(
       data.map(
-        async ({ envelopeItemId, order, title, richTextContent, richTextSignatureFieldId }) => {
+        async ({
+          envelopeItemId,
+          order,
+          title,
+          richTextContent,
+          richTextSignatureFieldId,
+          signingViewMode,
+        }) => {
           const updateData: {
             order?: number;
             title?: string;
             richTextContent?: string | null;
             richTextSignatureFieldId?: number | null;
+            signingViewMode?: typeof signingViewMode;
           } = {};
 
           if (order !== undefined) {
@@ -112,6 +140,10 @@ export const updateEnvelopeItemsRoute = authenticatedProcedure
             updateData.richTextSignatureFieldId = richTextSignatureFieldId;
           }
 
+          if (signingViewMode !== undefined) {
+            updateData.signingViewMode = signingViewMode;
+          }
+
           return prisma.envelopeItem.update({
             where: {
               envelopeId: envelope.id,
@@ -125,6 +157,7 @@ export const updateEnvelopeItemsRoute = authenticatedProcedure
               envelopeId: true,
               richTextContent: true,
               richTextSignatureFieldId: true,
+              signingViewMode: true,
             },
           });
         },

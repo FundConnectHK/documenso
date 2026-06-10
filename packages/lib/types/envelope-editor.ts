@@ -282,6 +282,7 @@ export const ZEditorEnvelopeSchema = EnvelopeSchema.pick({
     documentDataId: true,
     richTextContent: true,
     richTextSignatureFieldId: true,
+    signingViewMode: true,
   })
     .extend({
       // Only used for embedded.

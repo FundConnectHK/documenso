@@ -248,6 +248,7 @@ export type EnvelopeItemPermissions = {
   canTitleBeChanged: boolean;
   canFileBeChanged: boolean;
   canOrderBeChanged: boolean;
+  canSigningViewModeBeChanged: boolean;
 };
 
 export const getEnvelopeItemPermissions = (
@@ -265,6 +266,7 @@ export const getEnvelopeItemPermissions = (
       canTitleBeChanged: false,
       canFileBeChanged: false,
       canOrderBeChanged: false,
+      canSigningViewModeBeChanged: false,
     };
   }
 
@@ -274,6 +276,7 @@ export const getEnvelopeItemPermissions = (
       canTitleBeChanged: true,
       canFileBeChanged: true,
       canOrderBeChanged: true,
+      canSigningViewModeBeChanged: true,
     };
   }
 
@@ -290,11 +293,13 @@ export const getEnvelopeItemPermissions = (
       canTitleBeChanged: true,
       canFileBeChanged: true,
       canOrderBeChanged: true,
+      canSigningViewModeBeChanged: true,
     }))
     .with(DocumentStatus.PENDING, () => ({
       canTitleBeChanged: true,
       canFileBeChanged: false,
       canOrderBeChanged: !hasActiveRecipients, // Only allow order changes if no active recipients.
+      canSigningViewModeBeChanged: true,
     }))
     .exhaustive();
 };

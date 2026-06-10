@@ -4,7 +4,7 @@ import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { msg } from '@lingui/core/macro';
 import { Trans, useLingui } from '@lingui/react/macro';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentStatus, SigningViewMode } from '@prisma/client';
 import { FileWarningIcon, GripVerticalIcon, Loader2 } from 'lucide-react';
 import { X } from 'lucide-react';
 import { ErrorCode as DropzoneErrorCode, type FileRejection } from 'react-dropzone';
@@ -16,7 +16,10 @@ import { useCurrentEnvelopeEditor } from '@documenso/lib/client-only/providers/e
 import { useCurrentOrganisation } from '@documenso/lib/client-only/providers/organisation';
 import { APP_DOCUMENT_UPLOAD_SIZE_LIMIT } from '@documenso/lib/constants/app';
 import { nanoid } from '@documenso/lib/universal/id';
-import { canEnvelopeItemsBeModified } from '@documenso/lib/utils/envelope';
+import {
+  canEnvelopeItemsBeModified,
+  getEnvelopeItemPermissions,
+} from '@documenso/lib/utils/envelope';
 import { trpc } from '@documenso/trpc/react';
 import type { TCreateEnvelopeItemsPayload } from '@documenso/trpc/server/envelope-router/create-envelope-items.types';
 import { Button } from '@documenso/ui/primitives/button';
@@ -28,6 +31,14 @@ import {
   CardTitle,
 } from '@documenso/ui/primitives/card';
 import { DocumentDropzone } from '@documenso/ui/primitives/document-dropzone';
+import { Label } from '@documenso/ui/primitives/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@documenso/ui/primitives/select';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { EnvelopeItemDeleteDialog } from '~/components/dialogs/envelope-item-delete-dialog';
@@ -40,6 +51,7 @@ type LocalFile = {
   title: string;
   envelopeItemId: string | null;
   richTextContent: string | null;
+  signingViewMode: SigningViewMode;
   isUploading: boolean;
   isError: boolean;
 };
@@ -60,6 +72,7 @@ export const EnvelopeEditorUploadPage = () => {
         title: item.title,
         envelopeItemId: item.id,
         richTextContent: item.richTextContent ?? null,
+        signingViewMode: item.signingViewMode ?? SigningViewMode.AUTO,
         isUploading: false,
         isError: false,
       })),
@@ -76,6 +89,7 @@ export const EnvelopeEditorUploadPage = () => {
             ...item,
             richTextContent: null as string | null,
             richTextSignatureFieldId: null as number | null,
+            signingViewMode: SigningViewMode.AUTO,
           }));
 
         setLocalEnvelope({
@@ -108,12 +122,18 @@ export const EnvelopeEditorUploadPage = () => {
     [envelope, envelope.recipients],
   );
 
+  const canSigningViewModeBeChanged = useMemo(
+    () => getEnvelopeItemPermissions(envelope, envelope.recipients).canSigningViewModeBeChanged,
+    [envelope, envelope.recipients],
+  );
+
   const onFileDrop = async (files: File[]) => {
     const newUploadingFiles: (LocalFile & { file: File })[] = files.map((file) => ({
       id: nanoid(),
       envelopeItemId: null,
       title: file.name,
       richTextContent: null,
+      signingViewMode: SigningViewMode.AUTO,
       file,
       isUploading: true,
       isError: false,
@@ -160,6 +180,7 @@ export const EnvelopeEditorUploadPage = () => {
           envelopeItemId: item.id,
           title: item.title,
           richTextContent: null,
+          signingViewMode: SigningViewMode.AUTO,
           isUploading: false,
           isError: false,
         })),
@@ -212,9 +233,36 @@ export const EnvelopeEditorUploadPage = () => {
           order: index + 1,
           title: item.title,
           richTextContent: item.richTextContent ?? undefined,
+          signingViewMode: item.signingViewMode,
         })),
     });
   }, 1000);
+
+  const debouncedUpdateSigningViewMode = useDebounceFunction(
+    (envelopeItemId: string, signingViewMode: SigningViewMode) => {
+      void updateEnvelopeItems({
+        envelopeId: envelope.id,
+        data: [{ envelopeItemId, signingViewMode }],
+      });
+    },
+    300,
+  );
+
+  const onSigningViewModeChange = (envelopeItemId: string, signingViewMode: SigningViewMode) => {
+    const newLocalFilesValue = localFiles.map((uploadingFile) =>
+      uploadingFile.envelopeItemId === envelopeItemId
+        ? { ...uploadingFile, signingViewMode }
+        : uploadingFile,
+    );
+
+    setLocalFiles(newLocalFilesValue);
+    setLocalEnvelope({
+      envelopeItems: envelope.envelopeItems.map((item) =>
+        item.id === envelopeItemId ? { ...item, signingViewMode } : item,
+      ),
+    });
+    debouncedUpdateSigningViewMode(envelopeItemId, signingViewMode);
+  };
 
   const onEnvelopeItemTitleChange = (envelopeItemId: string, title: string) => {
     const newLocalFilesValue = localFiles.map((uploadingFile) =>
@@ -396,6 +444,56 @@ export const EnvelopeEditorUploadPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {localFiles.some((file) => file.envelopeItemId) && (
+        <Card backdropBlur={false} className="border">
+          <CardHeader className="pb-3">
+            <CardTitle>
+              <Trans>Signing Page Display</Trans>
+            </CardTitle>
+            <CardDescription>
+              <Trans>
+                Choose what signers see when opening the signing link. This can be changed after
+                sending the document.
+              </Trans>
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {localFiles
+              .filter((file) => file.envelopeItemId)
+              .map((localFile) => (
+                <div key={localFile.id} className="space-y-2">
+                  <Label htmlFor={`signing-view-mode-${localFile.id}`}>{localFile.title}</Label>
+                  <Select
+                    value={localFile.signingViewMode}
+                    disabled={!canSigningViewModeBeChanged}
+                    onValueChange={(value) => {
+                      if (localFile.envelopeItemId) {
+                        onSigningViewModeChange(localFile.envelopeItemId, value as SigningViewMode);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id={`signing-view-mode-${localFile.id}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SigningViewMode.AUTO}>
+                        <Trans>Auto (rich text when content exists)</Trans>
+                      </SelectItem>
+                      <SelectItem value={SigningViewMode.FORCE_PDF}>
+                        <Trans>Force PDF</Trans>
+                      </SelectItem>
+                      <SelectItem value={SigningViewMode.FORCE_RICH_TEXT}>
+                        <Trans>Force rich text</Trans>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recipients Section */}
       <EnvelopeEditorRecipientForm />

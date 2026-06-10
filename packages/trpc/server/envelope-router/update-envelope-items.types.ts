@@ -1,3 +1,4 @@
+import { SigningViewMode } from '@prisma/client';
 import { z } from 'zod';
 
 import EnvelopeItemSchema from '@documenso/prisma/generated/zod/modelSchema/EnvelopeItemSchema';
@@ -24,6 +25,7 @@ export const ZUpdateEnvelopeItemsRequestSchema = z.object({
       title: ZDocumentTitleSchema.optional(),
       richTextContent: z.string().optional(),
       richTextSignatureFieldId: z.number().int().optional().nullable(),
+      signingViewMode: z.nativeEnum(SigningViewMode).optional(),
     })
     .array()
     .min(1),
@@ -37,6 +39,7 @@ export const ZUpdateEnvelopeItemsResponseSchema = z.object({
     envelopeId: true,
     richTextContent: true,
     richTextSignatureFieldId: true,
+    signingViewMode: true,
   }).array(),
 });
 

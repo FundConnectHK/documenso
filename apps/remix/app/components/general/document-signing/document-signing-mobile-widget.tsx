@@ -7,6 +7,7 @@ import { LucideChevronDown, LucideChevronUp } from 'lucide-react';
 import { match } from 'ts-pattern';
 
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
+import { shouldUseRichTextSigningView } from '@documenso/lib/utils/rich-text-signing';
 import { Button } from '@documenso/ui/primitives/button';
 
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
@@ -25,7 +26,9 @@ export const DocumentSigningMobileWidget = () => {
   const { recipientFieldsRemaining, recipient, requiredRecipientFields } =
     useRequiredEnvelopeSigningContext();
 
-  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
+  const isRichTextSigningMode = currentEnvelopeItem
+    ? shouldUseRichTextSigningView(currentEnvelopeItem)
+    : false;
 
   /**
    * Pre open the widget for assistants to let them know it's there.
