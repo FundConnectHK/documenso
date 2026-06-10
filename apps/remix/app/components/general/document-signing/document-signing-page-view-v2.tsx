@@ -10,6 +10,7 @@ import { match } from 'ts-pattern';
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
 import { PDF_VIEWER_ERROR_MESSAGES } from '@documenso/lib/constants/pdf-viewer-i18n';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
+import { shouldUseRichTextSigningView } from '@documenso/lib/utils/rich-text-signing';
 import { Button } from '@documenso/ui/primitives/button';
 import { Separator } from '@documenso/ui/primitives/separator';
 
@@ -71,7 +72,9 @@ const DocumentSigningPageViewV2Content = () => {
   // Always hide powered by branding for recipient pages
   const hidePoweredBy = true;
 
-  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
+  const isRichTextSigningMode = currentEnvelopeItem
+    ? shouldUseRichTextSigningView(currentEnvelopeItem)
+    : false;
 
   /**
    * The total remaining fields remaining for the current recipient or selected assistant recipient.
@@ -285,10 +288,10 @@ const DocumentSigningPageViewV2Content = () => {
 
             {/* Document View */}
             <div className="embed--DocumentViewer flex flex-col items-center justify-center p-2 sm:mt-4 sm:p-4">
-              {currentEnvelopeItem?.richTextContent ? (
+              {isRichTextSigningMode && currentEnvelopeItem ? (
                 <RichTextSigningView
                   key={currentEnvelopeItem.id}
-                  richTextContent={currentEnvelopeItem.richTextContent}
+                  richTextContent={currentEnvelopeItem.richTextContent ?? ''}
                   envelopeItemId={currentEnvelopeItem.id}
                 />
               ) : currentEnvelopeItem ? (

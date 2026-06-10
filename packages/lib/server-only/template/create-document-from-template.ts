@@ -487,6 +487,7 @@ export const createDocumentFromTemplate = async ({
         order: item.order !== undefined ? item.order : i + 1,
         richTextContent: item.richTextContent,
         richTextSignatureFieldId: null,
+        signingViewMode: item.signingViewMode,
       };
     }),
   );

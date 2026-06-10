@@ -10,6 +10,7 @@ import { isBase64Image } from '@documenso/lib/constants/signatures';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
 import { mapSecondaryIdToDocumentId } from '@documenso/lib/utils/envelope';
+import { shouldUseRichTextSigningView } from '@documenso/lib/utils/rich-text-signing';
 import { trpc } from '@documenso/trpc/react';
 import { Button } from '@documenso/ui/primitives/button';
 import {
@@ -225,7 +226,9 @@ export const EnvelopeSignerCompleteDialog = () => {
     };
   }, [email, fullName, isDirectTemplate]);
 
-  const isRichTextSigningMode = Boolean(currentEnvelopeItem?.richTextContent);
+  const isRichTextSigningMode = currentEnvelopeItem
+    ? shouldUseRichTextSigningView(currentEnvelopeItem)
+    : false;
 
   const incompleteFieldLabels = useMemo(
     () =>

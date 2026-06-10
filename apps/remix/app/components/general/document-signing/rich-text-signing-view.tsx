@@ -7,6 +7,7 @@ import { CheckIcon, Loader2, PenLineIcon } from 'lucide-react';
 import type { TFieldSignature } from '@documenso/lib/types/field';
 import type { TCheckboxFieldMeta } from '@documenso/lib/types/field-meta';
 import { cn } from '@documenso/ui/lib/utils';
+import { FRIENDLY_FIELD_TYPE } from '@documenso/ui/primitives/document-flow/types';
 import { SignatureRender } from '@documenso/ui/primitives/signature-pad/signature-render';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
@@ -48,6 +49,8 @@ const coerceFieldType = (type: unknown): FieldType | undefined => {
 };
 
 type FieldWithSignature = TFieldSignature & {
+  recipientId: number;
+  secondaryId?: string;
   signature?: {
     signatureImageAsBase64: string | null;
     typedSignature: string | null;
@@ -72,6 +75,25 @@ const parseFieldPlaceholder = (value: string) => {
   return { fieldIdOrFormId: value, optionIndex: undefined };
 };
 
+const findFieldByPlaceholder = (
+  fieldIdOrFormId: string,
+  envelopeItemId: string,
+  allFields: FieldWithSignature[],
+) => {
+  const { fieldIdOrFormId: parsedFieldId } = parseFieldPlaceholder(fieldIdOrFormId);
+  const idNum = parseInt(parsedFieldId, 10);
+
+  return (
+    allFields.find(
+      (f) =>
+        f.envelopeItemId === envelopeItemId &&
+        (!Number.isNaN(idNum)
+          ? f.id === idNum
+          : f.secondaryId === parsedFieldId || String(f.id) === parsedFieldId),
+    ) ?? null
+  );
+};
+
 const RichTextCheckboxGlyph = ({ isChecked }: { isChecked: boolean }) => (
   <span
     className={cn(
@@ -87,38 +109,103 @@ const RichTextCheckboxGlyph = ({ isChecked }: { isChecked: boolean }) => (
   </span>
 );
 
+const RichTextFieldPlaceholder = ({ label }: { label: string }) => (
+  <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">[{label}]</span>
+);
+
+const RichTextSignatureDisplay = ({
+  field,
+  canSign,
+  onSignSignature,
+}: {
+  field: FieldWithSignature;
+  canSign: boolean;
+  onSignSignature: (field: TFieldSignature) => Promise<void>;
+}) => {
+  const [isSigning, setIsSigning] = useState(false);
+
+  if (field.inserted && field.signature) {
+    return (
+      <span className="my-1 inline-block min-w-[120px] align-middle">
+        <span className="inline-flex h-12 items-center">
+          {field.signature.signatureImageAsBase64 ? (
+            <img
+              src={field.signature.signatureImageAsBase64}
+              alt=""
+              className="max-h-10 max-w-[120px] object-contain"
+            />
+          ) : field.signature.typedSignature ? (
+            <SignatureRender
+              value={field.signature.typedSignature}
+              className="h-10 max-w-[120px]"
+            />
+          ) : null}
+        </span>
+      </span>
+    );
+  }
+
+  if (!canSign) {
+    return (
+      <span className="my-1 inline-block min-w-[80px] align-middle">
+        <RichTextFieldPlaceholder label="Signature" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="my-1 inline-block min-w-[120px] align-middle">
+      <button
+        type="button"
+        onClick={async () => {
+          setIsSigning(true);
+          try {
+            await onSignSignature(field as TFieldSignature);
+          } finally {
+            setIsSigning(false);
+          }
+        }}
+        disabled={isSigning}
+        className="inline-flex min-h-[36px] min-w-[80px] items-center justify-center gap-1 rounded border border-dashed border-border bg-muted/30 px-2 py-1 text-xs hover:bg-muted/50 disabled:opacity-50"
+      >
+        {isSigning ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <>
+            <PenLineIcon className="h-3 w-3" />
+            <Trans>Sign</Trans>
+          </>
+        )}
+      </button>
+    </span>
+  );
+};
+
 const RichTextInlineField = ({
   fieldIdOrFormId,
   envelopeItemId,
   allFields,
+  canSignField,
   onSignSignature,
 }: {
   fieldIdOrFormId: string;
   envelopeItemId: string;
   allFields: FieldWithSignature[];
+  canSignField: (field: FieldWithSignature) => boolean;
   onSignSignature: (field: TFieldSignature) => Promise<void>;
 }) => {
-  const [isSigning, setIsSigning] = useState(false);
+  const { t } = useLingui();
   const { fieldIdOrFormId: parsedFieldId, optionIndex } = parseFieldPlaceholder(fieldIdOrFormId);
-  const field = useMemo(() => {
-    const idNum = parseInt(parsedFieldId, 10);
-    return (
-      allFields.find(
-        (f) =>
-          f.envelopeItemId === envelopeItemId &&
-          (!Number.isNaN(idNum) ? f.id === idNum : String(f.id) === parsedFieldId),
-      ) ?? null
-    );
-  }, [parsedFieldId, envelopeItemId, allFields]);
+  const field = useMemo(
+    () => findFieldByPlaceholder(parsedFieldId, envelopeItemId, allFields),
+    [parsedFieldId, envelopeItemId, allFields],
+  );
 
   const fieldType = coerceFieldType(field?.type);
+  const fieldLabel = fieldType ? t(FRIENDLY_FIELD_TYPE[fieldType]) : parsedFieldId;
 
   if (!field) {
-    return (
-      <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
-        [field:{fieldIdOrFormId}]
-      </span>
-    );
+    return <RichTextFieldPlaceholder label={`field:${fieldIdOrFormId}`} />;
   }
 
   if (fieldType === FieldType.CHECKBOX) {
@@ -144,57 +231,16 @@ const RichTextInlineField = ({
       );
     }
 
-    return (
-      <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
-        [checkbox]
-      </span>
-    );
+    return <RichTextFieldPlaceholder label={fieldLabel} />;
   }
 
-  if (fieldType === FieldType.SIGNATURE) {
-    const fieldWithSig = field as FieldWithSignature;
+  if (fieldType === FieldType.SIGNATURE || fieldType === FieldType.FREE_SIGNATURE) {
     return (
-      <span className="my-1 inline-block min-w-[120px] align-middle">
-        {field.inserted && fieldWithSig.signature ? (
-          <span className="inline-flex h-12 items-center">
-            {fieldWithSig.signature.signatureImageAsBase64 ? (
-              <img
-                src={fieldWithSig.signature.signatureImageAsBase64}
-                alt=""
-                className="max-h-10 max-w-[120px] object-contain"
-              />
-            ) : fieldWithSig.signature.typedSignature ? (
-              <SignatureRender
-                value={fieldWithSig.signature.typedSignature}
-                className="h-10 max-w-[120px]"
-              />
-            ) : null}
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={async () => {
-              setIsSigning(true);
-              try {
-                await onSignSignature(field as TFieldSignature);
-              } finally {
-                setIsSigning(false);
-              }
-            }}
-            disabled={isSigning}
-            className="inline-flex min-h-[36px] min-w-[80px] items-center justify-center gap-1 rounded border border-dashed border-border bg-muted/30 px-2 py-1 text-xs hover:bg-muted/50 disabled:opacity-50"
-          >
-            {isSigning ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <>
-                <PenLineIcon className="h-3 w-3" />
-                <Trans>Sign</Trans>
-              </>
-            )}
-          </button>
-        )}
-      </span>
+      <RichTextSignatureDisplay
+        field={field}
+        canSign={canSignField(field)}
+        onSignSignature={onSignSignature}
+      />
     );
   }
 
@@ -202,14 +248,10 @@ const RichTextInlineField = ({
     return <span className="rounded bg-muted/30 px-1 py-0.5 text-sm">{field.customText}</span>;
   }
 
-  const fallbackLabel =
-    fieldType ?? (typeof field.type === 'string' ? field.type : `type:${String(field.type)}`);
+  const meta = field.fieldMeta as { label?: string } | null | undefined;
+  const displayLabel = meta?.label?.trim() || field.customText?.trim() || fieldLabel;
 
-  return (
-    <span className="rounded border border-dashed px-1 text-xs text-muted-foreground">
-      [{fallbackLabel}]
-    </span>
-  );
+  return <RichTextFieldPlaceholder label={displayLabel} />;
 };
 
 export const RichTextSigningView = ({
@@ -228,13 +270,18 @@ export const RichTextSigningView = ({
     recipientFields,
     selectedAssistantRecipientFields,
     signField: signFieldInternal,
-    signature,
     setSignature,
   } = useRequiredEnvelopeSigningContext();
 
   const { envelope } = envelopeData;
 
   const allFieldsForItem = useMemo(() => {
+    return envelope.recipients
+      .flatMap((envelopeRecipient) => envelopeRecipient.fields)
+      .filter((field) => field.envelopeItemId === envelopeItemId) as FieldWithSignature[];
+  }, [envelope.recipients, envelopeItemId]);
+
+  const recipientFieldsForItem = useMemo(() => {
     const fields =
       recipient.role === RecipientRole.ASSISTANT
         ? selectedAssistantRecipientFields.filter((f) => f.envelopeItemId === envelopeItemId)
@@ -242,7 +289,15 @@ export const RichTextSigningView = ({
     return fields as FieldWithSignature[];
   }, [recipient.role, envelopeItemId, recipientFields, selectedAssistantRecipientFields]);
 
-  const allSignatureFields = allFieldsForItem.filter((f) => f.type === FieldType.SIGNATURE);
+  const canSignField = (field: FieldWithSignature) => {
+    if (recipient.role === RecipientRole.ASSISTANT) {
+      return selectedAssistantRecipientFields.some((f) => f.id === field.id);
+    }
+
+    return field.recipientId === recipient.id;
+  };
+
+  const allSignatureFields = recipientFieldsForItem.filter((f) => f.type === FieldType.SIGNATURE);
   const signatureFields = (() => {
     const withRichTextSigningArea = allSignatureFields.filter((f) => {
       const meta = f.fieldMeta as { richTextSigningArea?: boolean } | null | undefined;
@@ -358,6 +413,7 @@ export const RichTextSigningView = ({
                 fieldIdOrFormId={seg.value}
                 envelopeItemId={envelopeItemId}
                 allFields={allFieldsForItem}
+                canSignField={canSignField}
                 onSignSignature={handleSignClick}
               />
             ),

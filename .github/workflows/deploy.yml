@@ -31,7 +31,8 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
+          # GH_TOKEN (PAT) 可触发 push 后的 cd.yml；未配置时回退到 GITHUB_TOKEN（晋升可完成，但可能需手动再跑 Deploy）
+          token: ${{ secrets.GH_TOKEN || github.token }}
 
       - name: Calculate and create tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'

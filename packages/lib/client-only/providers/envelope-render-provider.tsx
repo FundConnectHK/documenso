@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 
-import type { EnvelopeItem, Field, Recipient } from '@prisma/client';
+import type { EnvelopeItem, Field, Recipient, SigningViewMode } from '@prisma/client';
 
 import type { TRecipientColor } from '@documenso/ui/lib/recipient-colors';
 import { AVAILABLE_RECIPIENT_COLORS } from '@documenso/ui/lib/recipient-colors';
@@ -9,6 +9,7 @@ import { AVAILABLE_RECIPIENT_COLORS } from '@documenso/ui/lib/recipient-colors';
 import type { TEnvelope } from '../../types/envelope';
 import type { FieldRenderMode } from '../../universal/field-renderer/render-field';
 import { getEnvelopeItemPdfUrl } from '../../utils/envelope-download';
+import { shouldUseRichTextSigningView } from '../../utils/rich-text-signing';
 
 export type ImageLoadingState = 'loading' | 'loaded' | 'error';
 
@@ -39,6 +40,7 @@ type EnvelopeRenderOverrideSettings = {
 type EnvelopeRenderItem = Pick<EnvelopeItem, 'id' | 'envelopeId' | 'title' | 'order'> & {
   richTextContent?: string | null;
   richTextSignatureFieldId?: number | null;
+  signingViewMode?: SigningViewMode | null;
   documentDataId?: string;
 };
 
@@ -205,11 +207,8 @@ export const EnvelopeRenderProvider = ({
     }
 
     const isSigningMode = token !== undefined;
-    if (isSigningMode) {
-      const hasAnyRichText = envelope.envelopeItems.some((item) => item.richTextContent);
-      if (hasAnyRichText && currentItem.richTextContent) {
-        return;
-      }
+    if (isSigningMode && shouldUseRichTextSigningView(currentItem)) {
+      return;
     }
 
     if (!files[currentItem.id] || files[currentItem.id].status === 'error') {

@@ -383,6 +383,12 @@ enum EnvelopeType {
   TEMPLATE
 }
 
+enum SigningViewMode {
+  AUTO
+  FORCE_PDF
+  FORCE_RICH_TEXT
+}
+
 /// @zod.import(["import { ZDocumentAuthOptionsSchema } from '@documenso/lib/types/document-auth';", "import { ZDocumentFormValuesSchema } from '@documenso/lib/types/document-form-values';"])
 model Envelope {
   id          String  @id
@@ -453,6 +459,9 @@ model EnvelopeItem {
   order Int
 
   richTextContent String?
+
+  /// Controls whether signers see the PDF or rich text signing view.
+  signingViewMode SigningViewMode @default(AUTO)
 
   /// When set, the rich text signing bar signs this specific field (exactly one).
   richTextSignatureFieldId Int?
