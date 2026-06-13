@@ -1,10 +1,11 @@
-# Pull down translations from Crowdin every two hours or when triggered manually.
+# Pull down translations from Crowdin when triggered manually (schedule disabled on this fork).
+# Re-enable: uncomment `schedule` below. Requires Crowdin + GitHub secrets and `Translations` environment.
 
 name: 'Pull translations'
 
 on:
-  schedule:
-    - cron: '0 */2 * * *' # Every two hours.
+  # schedule:
+  #   - cron: '0 */2 * * *' # Every two hours.
   workflow_dispatch:
   workflow_call:
 
