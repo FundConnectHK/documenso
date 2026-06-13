@@ -37,10 +37,6 @@ msgstr "„{0}“ wird auf dem Dokument erscheinen, da es eine Zeitzone von „{
 msgid "\"{documentName}\" has been deleted by an admin."
 msgstr "\"{documentName}\" wurde von einem Administrator gelöscht."
 
-#: packages/email/template-components/template-document-pending.tsx
-msgid "“{documentName}” has been signed"
-msgstr "„{documentName}“ wurde unterschrieben"
-
 #: apps/remix/app/components/dialogs/document-delete-dialog.tsx
 msgid "\"{documentTitle}\" has been successfully deleted"
 msgstr "\"{documentTitle}\" wurde erfolgreich gelöscht"
@@ -352,18 +348,16 @@ msgstr "{inviterName} im Auftrag von \"{0}\" hat Sie eingeladen, das Dokument \"
 msgid "{inviterName} on behalf of \"{teamName}\" has invited you to {action} {documentName}"
 msgstr "{inviterName} im Namen von \"{teamName}\" hat Sie eingeladen, das Dokument {documentName} {action}"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 代表「{teamName}」邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 代表「{teamName}」邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: packages/email/template-components/template-document-cancel.tsx
 msgid "{inviterName} 已取消文件<0/>「{documentName}」"
 msgstr ""
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{inviterName} 邀請您{0}<0/>「{documentName}」"
+msgid "{inviterName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: apps/remix/app/components/dialogs/passkey-create-dialog.tsx
@@ -430,9 +424,8 @@ msgstr ""
 msgid "{teamName} has invited you to {action} {documentName}"
 msgstr "{teamName} hat Sie eingeladen, {action} {documentName}"
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
 #: packages/email/template-components/template-document-invite.tsx
-msgid "{teamName} 邀請您{0}<0/>「{documentName}」"
+msgid "{teamName} 邀請您{actionVerbZhHk}<0/>「{documentName}」"
 msgstr ""
 
 #: packages/lib/utils/document-audit-logs.ts
@@ -604,6 +597,10 @@ msgstr "{visibleRows, plural, one {Eine # Ergebnis wird angezeigt.} other {# Erg
 
 #: packages/email/template-components/template-document-completed.tsx
 msgid "「{documentName}」已由所有簽署人完成簽署"
+msgstr ""
+
+#: packages/email/template-components/template-document-pending.tsx
+msgid "「{documentName}」您已簽署，尚待其他簽署人"
 msgstr ""
 
 #. placeholder {0}: document.title
@@ -2045,6 +2042,10 @@ msgstr "Authentifizierung erforderlich"
 msgid "Authenticator app"
 msgstr "Authenticator-App"
 
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+msgid "Auto (rich text when content exists)"
+msgstr ""
+
 #: apps/remix/app/components/general/document-signing/document-signing-auto-sign.tsx
 msgid "Automatically sign fields"
 msgstr "Felder automatisch unterschreiben"
@@ -2442,6 +2443,10 @@ msgstr "Wählen Sie, wie Sie Ihr Dokument an Empfänger verteilen möchten. E-Ma
 #: apps/remix/app/components/general/document-signing/access-auth-2fa-form.tsx
 msgid "Choose verification method"
 msgstr "Verifizierungsmethode wählen"
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+msgid "Choose what signers see when opening the signing link. This can be changed after sending the document."
+msgstr ""
 
 #: apps/remix/app/components/general/document-signing/document-signing-auth-dialog.tsx
 msgid "Choose your preferred authentication method:"
@@ -5189,6 +5194,14 @@ msgstr "Für jeden Empfänger geben Sie dessen E-Mail (erforderlich) und Namen (
 #: apps/remix/app/routes/_authenticated+/admin+/organisations.$id.tsx
 msgid "For example, if the claim has a new flag \"FLAG_1\" set to true, then this organisation will get that flag added."
 msgstr "Wenn der Anspruch zum Beispiel das neue Flag 'FLAG_1' hat, das auf wahr gesetzt ist, wird dieser Organisation dieses Flag hinzugefügt."
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+msgid "Force PDF"
+msgstr ""
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+msgid "Force rich text"
+msgstr ""
 
 #: apps/remix/app/routes/_unauthenticated+/check-email.tsx
 msgid "Forgot password"
@@ -9038,6 +9051,10 @@ msgstr "Unterzeichnungslinks wurden für dieses Dokument erstellt."
 #: packages/ui/primitives/template-flow/add-template-placeholder-recipients.tsx
 msgid "Signing order is enabled."
 msgstr "Unterzeichnungsreihenfolge ist aktiviert."
+
+#: apps/remix/app/components/general/envelope-editor/envelope-editor-upload-page.tsx
+msgid "Signing Page Display"
+msgstr ""
 
 #: apps/remix/app/routes/_authenticated+/admin+/documents.$id.tsx
 msgid "Signing Status"
@@ -13172,7 +13189,7 @@ msgstr ""
 #. placeholder {0}: envelope.title
 #: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
 #: packages/lib/server-only/document/resend-document.ts
-msgid "您已發起文件「{0}」，請您{recipientActionVerb}。"
+msgid "您已發起文件「{0}」，請您{actionVerbZhHk}。"
 msgstr ""
 
 #: packages/email/template-components/template-document-self-signed.tsx
@@ -13230,7 +13247,7 @@ msgid "提示"
 msgstr ""
 
 #: packages/lib/server-only/document/resend-document.ts
-msgid "提醒：請{recipientActionVerb}您的文件"
+msgid "提醒：請{actionVerbZhHk}您的文件"
 msgstr ""
 
 #: packages/email/template-components/template-document-rejected.tsx
@@ -13331,13 +13348,12 @@ msgstr ""
 msgid "等待其他人"
 msgstr ""
 
-#. placeholder {0}: _(actionVerb).toLowerCase()
-#: packages/email/template-components/template-document-invite.tsx
-msgid "請{0}您的文件<0/>「{documentName}」"
+#: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
+msgid "請{actionVerbZhHk}您的文件"
 msgstr ""
 
-#: packages/lib/jobs/definitions/emails/send-signing-email.handler.ts
-msgid "請{recipientActionVerb}您的文件"
+#: packages/email/template-components/template-document-invite.tsx
+msgid "請{actionVerbZhHk}您的文件<0/>「{documentName}」"
 msgstr ""
 
 #: packages/email/template-components/template-document-completed.tsx
