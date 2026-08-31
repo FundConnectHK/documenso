@@ -616,7 +616,13 @@ export const createDocumentFromTemplate = async ({
           });
         }
 
-        const expectedType = templateField.type.toLowerCase();
+        // NAME and EMAIL fields are represented as text prefill payloads by the
+        // public API SDKs. Keep the template field type intact while accepting
+        // the SDK-compatible payload shape.
+        const expectedType =
+          templateField.type === FieldType.NAME || templateField.type === FieldType.EMAIL
+            ? 'text'
+            : templateField.type.toLowerCase();
         const actualType = prefillField.type;
 
         if (expectedType !== actualType) {
@@ -712,6 +718,22 @@ export const createDocumentFromTemplate = async ({
                 payload.displayValueForRichText = payload.customText;
               })
               .otherwise((selector) => {
+                if (
+                  selector.type === 'text' &&
+                  (field.type === FieldType.NAME || field.type === FieldType.EMAIL)
+                ) {
+                  if (typeof selector.value !== 'string') {
+                    throw new AppError(AppErrorCode.INVALID_BODY, {
+                      message: `Invalid value for ${field.type} field ${field.id}: expected string, got ${typeof selector.value}`,
+                    });
+                  }
+
+                  payload.customText = selector.value;
+                  payload.inserted = true;
+                  payload.displayValueForRichText = selector.value;
+                  return;
+                }
+
                 payload.fieldMeta = getUpdatedFieldMeta(field, selector);
                 const updatedMeta = payload.fieldMeta;
                 if (updatedMeta && typeof updatedMeta === 'object') {
