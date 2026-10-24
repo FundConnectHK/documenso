@@ -27,6 +27,7 @@ import type { RequestMetadata } from '../../universal/extract-request-metadata';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import { assertRecipientNotExpired } from '../../utils/recipients';
 import { validateFieldAuth } from '../document/validate-field-auth';
+import { withLockedSigningSession } from '../document/with-locked-signing-session';
 
 export type SignFieldWithTokenOptions = {
   token: string;
@@ -237,94 +238,102 @@ export const signFieldWithToken = async ({
 
   const assistant = recipient.role === RecipientRole.ASSISTANT ? recipient : undefined;
 
-  return await prisma.$transaction(async (tx) => {
-    const updatedField = await tx.field.update({
-      where: {
-        id: field.id,
-      },
-      data: {
-        customText,
-        inserted: true,
-      },
-    });
-
-    if (isSignatureField) {
-      const signature = await tx.signature.upsert({
+  return await withLockedSigningSession(
+    {
+      envelopeId: envelope.id,
+      recipientId: recipient.id,
+      fieldRecipientId: field.recipient.id,
+      token,
+    },
+    async (tx) => {
+      const updatedField = await tx.field.update({
         where: {
-          fieldId: field.id,
+          id: field.id,
         },
-        create: {
-          fieldId: field.id,
-          recipientId: field.recipientId,
-          signatureImageAsBase64: signatureImageAsBase64,
-          typedSignature: typedSignature,
-        },
-        update: {
-          signatureImageAsBase64: signatureImageAsBase64,
-          typedSignature: typedSignature,
-        },
-      });
-
-      // Dirty but I don't want to deal with type information
-      Object.assign(updatedField, {
-        signature,
-      });
-    }
-
-    await tx.documentAuditLog.create({
-      data: createDocumentAuditLogData({
-        type:
-          assistant && field.recipientId !== assistant.id
-            ? DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_PREFILLED
-            : DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_INSERTED,
-        envelopeId: envelope.id,
-        user: {
-          email: assistant?.email ?? recipient.email,
-          name: assistant?.name ?? recipient.name,
-        },
-        requestMetadata,
         data: {
-          recipientEmail: recipient.email,
-          recipientId: recipient.id,
-          recipientName: recipient.name,
-          recipientRole: recipient.role,
-          fieldId: updatedField.secondaryId,
-          field: match(updatedField.type)
-            .with(FieldType.SIGNATURE, FieldType.FREE_SIGNATURE, (type) => ({
-              type,
-              data: signatureImageAsBase64 || typedSignature || '',
-            }))
-            .with(
-              FieldType.DATE,
-              FieldType.EMAIL,
-              FieldType.NAME,
-              FieldType.TEXT,
-              FieldType.INITIALS,
-              (type) => ({
-                type,
-                data: updatedField.customText,
-              }),
-            )
-            .with(
-              FieldType.NUMBER,
-              FieldType.RADIO,
-              FieldType.CHECKBOX,
-              FieldType.DROPDOWN,
-              (type) => ({
-                type,
-                data: updatedField.customText,
-              }),
-            )
-            .exhaustive(),
-          fieldSecurity: derivedRecipientActionAuth
-            ? {
-                type: derivedRecipientActionAuth,
-              }
-            : undefined,
+          customText,
+          inserted: true,
         },
-      }),
-    });
+      });
 
-    return updatedField;
-  });
+      if (isSignatureField) {
+        const signature = await tx.signature.upsert({
+          where: {
+            fieldId: field.id,
+          },
+          create: {
+            fieldId: field.id,
+            recipientId: field.recipientId,
+            signatureImageAsBase64: signatureImageAsBase64,
+            typedSignature: typedSignature,
+          },
+          update: {
+            signatureImageAsBase64: signatureImageAsBase64,
+            typedSignature: typedSignature,
+          },
+        });
+
+        // Dirty but I don't want to deal with type information
+        Object.assign(updatedField, {
+          signature,
+        });
+      }
+
+      await tx.documentAuditLog.create({
+        data: createDocumentAuditLogData({
+          type:
+            assistant && field.recipientId !== assistant.id
+              ? DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_PREFILLED
+              : DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_INSERTED,
+          envelopeId: envelope.id,
+          user: {
+            email: assistant?.email ?? recipient.email,
+            name: assistant?.name ?? recipient.name,
+          },
+          requestMetadata,
+          data: {
+            recipientEmail: recipient.email,
+            recipientId: recipient.id,
+            recipientName: recipient.name,
+            recipientRole: recipient.role,
+            fieldId: updatedField.secondaryId,
+            field: match(updatedField.type)
+              .with(FieldType.SIGNATURE, FieldType.FREE_SIGNATURE, (type) => ({
+                type,
+                data: signatureImageAsBase64 || typedSignature || '',
+              }))
+              .with(
+                FieldType.DATE,
+                FieldType.EMAIL,
+                FieldType.NAME,
+                FieldType.TEXT,
+                FieldType.INITIALS,
+                (type) => ({
+                  type,
+                  data: updatedField.customText,
+                }),
+              )
+              .with(
+                FieldType.NUMBER,
+                FieldType.RADIO,
+                FieldType.CHECKBOX,
+                FieldType.DROPDOWN,
+                (type) => ({
+                  type,
+                  data: updatedField.customText,
+                }),
+              )
+              .exhaustive(),
+            fieldSecurity: derivedRecipientActionAuth
+              ? {
+                  type: derivedRecipientActionAuth,
+                }
+              : undefined,
+          },
+        }),
+      });
+
+      return updatedField;
+    },
+  );
 };

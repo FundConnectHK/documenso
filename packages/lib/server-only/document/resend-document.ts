@@ -5,6 +5,7 @@ import {
   DocumentStatus,
   EnvelopeType,
   OrganisationType,
+  Prisma,
   RecipientRole,
   SigningStatus,
   WebhookTriggerEvents,
@@ -38,6 +39,7 @@ import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';
 import { getEmailContext } from '../email/get-email-context';
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
+import { assertDocumentSigningNotRevoked, lockDocumentForSending } from './document-signing-state';
 
 export type ResendDocumentOptions = {
   id: EnvelopeIdOptions;
@@ -90,6 +92,8 @@ export const resendDocument = async ({
     throw new Error('Document not found');
   }
 
+  assertDocumentSigningNotRevoked(envelope);
+
   if (envelope.recipients.length === 0) {
     throw new Error('Document has no recipients');
   }
@@ -102,30 +106,33 @@ export const resendDocument = async ({
     throw new Error('Can not send completed document');
   }
 
-  // Refresh the expiresAt on each resent recipient.
-  const expiresAt = resolveExpiresAt(envelope.documentMeta?.envelopeExpirationPeriod ?? null);
-
-  const recipientsToRemind = envelope.recipients.filter(
-    (recipient) =>
-      recipients.includes(recipient.id) &&
-      recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-      recipient.role !== RecipientRole.CC,
-  );
-
-  // Extend the expiration deadline for recipients being resent.
-  if (expiresAt && recipientsToRemind.length > 0) {
-    await prisma.recipient.updateMany({
-      where: {
-        id: {
-          in: recipientsToRemind.map((r) => r.id),
+  const recipientsToRemind = await prisma.$transaction(
+    async (tx) => {
+      const current = await lockDocumentForSending({ tx, envelopeId: envelope.id, teamId });
+      const currentMeta = await tx.documentMeta.findUniqueOrThrow({
+        where: { id: current.documentMetaId },
+      });
+      const remaining = await tx.recipient.findMany({
+        where: {
+          envelopeId: current.id,
+          id: { in: recipients },
+          signingStatus: SigningStatus.NOT_SIGNED,
+          role: { not: RecipientRole.CC },
         },
-      },
-      data: {
-        expiresAt,
-        expirationNotifiedAt: null,
-      },
-    });
-  }
+      });
+      const expiresAt = resolveExpiresAt(currentMeta.envelopeExpirationPeriod ?? null);
+
+      if (expiresAt && remaining.length > 0) {
+        await tx.recipient.updateMany({
+          where: { id: { in: remaining.map((recipient) => recipient.id) } },
+          data: { expiresAt, expirationNotifiedAt: null },
+        });
+      }
+
+      return remaining;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 },
+  );
 
   const isRecipientSigningRequestEmailEnabled = extractDerivedDocumentEmailSettings(
     envelope.documentMeta,

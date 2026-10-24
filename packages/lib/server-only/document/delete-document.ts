@@ -2,7 +2,16 @@ import { createElement } from 'react';
 
 import { msg } from '@lingui/core/macro';
 import type { DocumentMeta, Envelope, Recipient, User } from '@prisma/client';
-import { DocumentStatus, EnvelopeType, SendStatus, WebhookTriggerEvents } from '@prisma/client';
+import {
+  DocumentStatus,
+  EnvelopeType,
+  FieldType,
+  Prisma,
+  RecipientRole,
+  SendStatus,
+  SigningStatus,
+  WebhookTriggerEvents,
+} from '@prisma/client';
 
 import { mailer } from '@documenso/email/mailer';
 import DocumentCancelTemplate from '@documenso/email/templates/document-cancel';
@@ -32,6 +41,7 @@ export type DeleteDocumentOptions = {
   userId: number;
   teamId: number;
   requestMetadata: ApiRequestMetadata;
+  onlyIfUnsigned?: boolean;
 };
 
 export const deleteDocument = async ({
@@ -39,6 +49,7 @@ export const deleteDocument = async ({
   userId,
   teamId,
   requestMetadata,
+  onlyIfUnsigned = false,
 }: DeleteDocumentOptions) => {
   const user = await prisma.user.findUnique({
     where: {
@@ -86,13 +97,23 @@ export const deleteDocument = async ({
     });
   }
 
+  if (onlyIfUnsigned && ((!isUserOwner && !isUserTeamMember) || envelope.teamId !== teamId)) {
+    throw new AppError(AppErrorCode.UNAUTHORIZED, {
+      message: 'Not allowed to delete this unsigned document',
+    });
+  }
+
   // Handle hard or soft deleting the actual document if user has permission.
   if (isUserOwner || isUserTeamMember) {
-    await handleDocumentOwnerDelete({
-      envelope,
-      user,
-      requestMetadata,
-    });
+    if (onlyIfUnsigned) {
+      await handleUnsignedDocumentOwnerDelete({ envelope, requestMetadata });
+    } else {
+      await handleDocumentOwnerDelete({
+        envelope,
+        user,
+        requestMetadata,
+      });
+    }
 
     await triggerWebhook({
       event: WebhookTriggerEvents.DOCUMENT_CANCELLED,
@@ -120,6 +141,80 @@ export const deleteDocument = async ({
   }
 
   return envelope;
+};
+
+// Lock the rows written by signing transactions as well as their FK parents.
+// A signer that committed first is observed by the fresh checks below. A signer
+// arriving later cannot update a recipient/field or insert a signature before
+// deletion commits. No cancellation email is sent by this strict operation.
+const handleUnsignedDocumentOwnerDelete = async ({
+  envelope,
+  requestMetadata,
+}: {
+  envelope: Envelope;
+  requestMetadata: ApiRequestMetadata;
+}) => {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Envelope" WHERE "id" = ${envelope.id} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "Recipient" WHERE "envelopeId" = ${envelope.id} ORDER BY "id" FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "Field" WHERE "envelopeId" = ${envelope.id} ORDER BY "id" FOR UPDATE`;
+
+      const current = await tx.envelope.findUnique({
+        where: { id: envelope.id },
+        include: {
+          recipients: true,
+          fields: { select: { type: true, inserted: true, signature: { select: { id: true } } } },
+        },
+      });
+
+      if (!current) {
+        return;
+      }
+
+      if (current.teamId !== envelope.teamId) {
+        throw new AppError(AppErrorCode.UNAUTHORIZED, { message: 'Document team has changed' });
+      }
+
+      const hasSigningEvidence =
+        current.recipients.some(
+          (recipient) =>
+            recipient.signedAt !== null ||
+            (recipient.role !== RecipientRole.CC &&
+              recipient.signingStatus === SigningStatus.SIGNED),
+        ) ||
+        current.fields.some(
+          (field) =>
+            field.signature !== null ||
+            (field.inserted &&
+              (field.type === FieldType.SIGNATURE ||
+                field.type === FieldType.FREE_SIGNATURE ||
+                field.type === FieldType.INITIALS)),
+        );
+
+      if (
+        hasSigningEvidence ||
+        current.deletedAt ||
+        (current.status !== DocumentStatus.DRAFT && current.status !== DocumentStatus.PENDING)
+      ) {
+        throw new AppError(AppErrorCode.INVALID_REQUEST, {
+          message: 'SIGNED_DOCUMENT_CANNOT_BE_DELETED',
+          statusCode: 409,
+        });
+      }
+
+      await tx.documentAuditLog.create({
+        data: createDocumentAuditLogData({
+          envelopeId: current.id,
+          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_DELETED,
+          metadata: requestMetadata,
+          data: { type: 'HARD' },
+        }),
+      });
+      await tx.envelope.delete({ where: { id: current.id } });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 },
+  );
 };
 
 type HandleDocumentOwnerDeleteOptions = {

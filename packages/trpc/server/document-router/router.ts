@@ -7,6 +7,7 @@ import { updateAttachmentRoute } from './attachment/update-attachment';
 import { createDocumentRoute } from './create-document';
 import { createDocumentTemporaryRoute } from './create-document-temporary';
 import { deleteDocumentRoute } from './delete-document';
+import { deleteUnsignedDocumentRoute } from './delete-unsigned-document';
 import { distributeDocumentRoute } from './distribute-document';
 import { downloadDocumentRoute } from './download-document';
 import { downloadDocumentAuditLogsRoute } from './download-document-audit-logs';
@@ -22,6 +23,7 @@ import { getDocumentByTokenRoute } from './get-document-by-token';
 import { getDocumentsByIdsRoute } from './get-documents-by-ids';
 import { getInboxCountRoute } from './get-inbox-count';
 import { redistributeDocumentRoute } from './redistribute-document';
+import { revokeDocumentSigningRoute } from './revoke-document-signing';
 import { searchDocumentRoute } from './search-document';
 import { shareDocumentRoute } from './share-document';
 import { updateDocumentRoute } from './update-document';
@@ -33,6 +35,8 @@ export const documentRouter = router({
   create: createDocumentRoute,
   update: updateDocumentRoute,
   delete: deleteDocumentRoute,
+  deleteUnsigned: deleteUnsignedDocumentRoute,
+  revokeSigning: revokeDocumentSigningRoute,
   duplicate: duplicateDocumentRoute,
   downloadCertificate: downloadDocumentCertificateRoute,
   distribute: distributeDocumentRoute,
