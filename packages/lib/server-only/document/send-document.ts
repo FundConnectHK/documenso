@@ -4,6 +4,7 @@ import {
   DocumentStatus,
   EnvelopeType,
   FieldType,
+  Prisma,
   RecipientRole,
   SendStatus,
   SigningStatus,
@@ -46,6 +47,7 @@ import {
 import { getEnvelopeWhereInput } from '../envelope/get-envelope-by-id';
 import { insertFormValuesInPdf } from '../pdf/insert-form-values-in-pdf';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
+import { assertDocumentSigningNotRevoked, lockDocumentForSending } from './document-signing-state';
 
 export type SendDocumentOptions = {
   id: EnvelopeIdOptions;
@@ -96,6 +98,8 @@ export const sendDocument = async ({
   if (!envelope) {
     throw new Error('Document not found');
   }
+
+  assertDocumentSigningNotRevoked(envelope);
 
   if (envelope.recipients.length === 0) {
     throw new Error('Document has no recipients');
@@ -174,6 +178,12 @@ export const sendDocument = async ({
   );
 
   if (allRecipientsHaveNoActionToTake) {
+    await prisma.$transaction(
+      async (tx) => {
+        await lockDocumentForSending({ tx, envelopeId: envelope.id, teamId, allowDraft: true });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 },
+    );
     await jobs.triggerJob({
       name: 'internal.seal-document',
       payload: {
@@ -216,85 +226,94 @@ export const sendDocument = async ({
     }
   }
 
-  const updatedEnvelope = await prisma.$transaction(async (tx) => {
-    if (envelope.status === DocumentStatus.DRAFT) {
-      await tx.documentAuditLog.create({
-        data: createDocumentAuditLogData({
-          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_SENT,
-          envelopeId: envelope.id,
-          metadata: requestMetadata,
-          data: {},
-        }),
+  const updatedEnvelope = await prisma.$transaction(
+    async (tx) => {
+      const current = await lockDocumentForSending({
+        tx,
+        envelopeId: envelope.id,
+        teamId,
+        allowDraft: true,
       });
-    }
+      if (current.status === DocumentStatus.DRAFT) {
+        await tx.documentAuditLog.create({
+          data: createDocumentAuditLogData({
+            type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_SENT,
+            envelopeId: envelope.id,
+            metadata: requestMetadata,
+            data: {},
+          }),
+        });
+      }
 
-    if (envelope.internalVersion === 2) {
-      const autoInsertedFields = await Promise.all(
-        fieldsToAutoInsert.map(async (field) => {
-          // Warning: Only auto-insert fields if the recipient has not been sent the document yet.
-          return await tx.field.update({
-            where: {
-              id: field.fieldId,
-            },
+      if (envelope.internalVersion === 2) {
+        const autoInsertedFields = await Promise.all(
+          fieldsToAutoInsert.map(async (field) => {
+            // Warning: Only auto-insert fields if the recipient has not been sent the document yet.
+            return await tx.field.update({
+              where: {
+                id: field.fieldId,
+              },
+              data: {
+                customText: field.customText,
+                inserted: true,
+              },
+            });
+          }),
+        );
+
+        await tx.documentAuditLog.create({
+          data: createDocumentAuditLogData({
+            type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELDS_AUTO_INSERTED,
+            envelopeId: envelope.id,
             data: {
-              customText: field.customText,
-              inserted: true,
+              fields: autoInsertedFields.map((field) => ({
+                fieldId: field.id,
+                fieldType: field.type,
+                recipientId: field.recipientId,
+              })),
             },
-          });
-        }),
-      );
+            // Don't put metadata or user here since it's a system event.
+          }),
+        });
+      }
 
-      await tx.documentAuditLog.create({
-        data: createDocumentAuditLogData({
-          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELDS_AUTO_INSERTED,
-          envelopeId: envelope.id,
+      const expiresAt = resolveExpiresAt(envelope.documentMeta?.envelopeExpirationPeriod ?? null);
+
+      // Set expiresAt on each recipient that hasn't already signed/rejected.
+      // Exclude CC recipients since they don't sign and shouldn't be subject to expiry.
+      if (expiresAt) {
+        await tx.recipient.updateMany({
+          where: {
+            envelopeId: envelope.id,
+            signingStatus: {
+              notIn: [SigningStatus.SIGNED, SigningStatus.REJECTED],
+            },
+            role: {
+              not: RecipientRole.CC,
+            },
+          },
           data: {
-            fields: autoInsertedFields.map((field) => ({
-              fieldId: field.id,
-              fieldType: field.type,
-              recipientId: field.recipientId,
-            })),
+            expiresAt,
+            expirationNotifiedAt: null,
           },
-          // Don't put metadata or user here since it's a system event.
-        }),
-      });
-    }
+        });
+      }
 
-    const expiresAt = resolveExpiresAt(envelope.documentMeta?.envelopeExpirationPeriod ?? null);
-
-    // Set expiresAt on each recipient that hasn't already signed/rejected.
-    // Exclude CC recipients since they don't sign and shouldn't be subject to expiry.
-    if (expiresAt) {
-      await tx.recipient.updateMany({
+      return await tx.envelope.update({
         where: {
-          envelopeId: envelope.id,
-          signingStatus: {
-            notIn: [SigningStatus.SIGNED, SigningStatus.REJECTED],
-          },
-          role: {
-            not: RecipientRole.CC,
-          },
+          id: envelope.id,
         },
         data: {
-          expiresAt,
-          expirationNotifiedAt: null,
+          status: DocumentStatus.PENDING,
+        },
+        include: {
+          documentMeta: true,
+          recipients: true,
         },
       });
-    }
-
-    return await tx.envelope.update({
-      where: {
-        id: envelope.id,
-      },
-      data: {
-        status: DocumentStatus.PENDING,
-      },
-      include: {
-        documentMeta: true,
-        recipients: true,
-      },
-    });
-  });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 },
+  );
 
   const isRecipientSigningRequestEmailEnabled = extractDerivedDocumentEmailSettings(
     envelope.documentMeta,

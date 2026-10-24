@@ -37,6 +37,7 @@ import { getIsRecipientsTurnToSign } from '../recipient/get-is-recipient-turn';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 import { isRecipientAuthorized } from './is-recipient-authorized';
 import { sendPendingEmail } from './send-pending-email';
+import { withLockedSigningSession } from './with-locked-signing-session';
 
 export type CompleteDocumentWithTokenOptions = {
   token: string;
@@ -230,23 +231,61 @@ export const completeDocumentWithToken = async ({
     });
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.recipient.update({
-      where: {
-        id: recipient.id,
-      },
-      data: {
-        signingStatus: SigningStatus.SIGNED,
-        signedAt: new Date(),
-        name: recipientName,
-        email: recipientEmail,
-      },
-    });
+  await withLockedSigningSession(
+    { envelopeId: envelope.id, recipientId: recipient.id, token },
+    async (tx) => {
+      await tx.recipient.update({
+        where: {
+          id: recipient.id,
+        },
+        data: {
+          signingStatus: SigningStatus.SIGNED,
+          signedAt: new Date(),
+          name: recipientName,
+          email: recipientEmail,
+        },
+      });
 
-    if (recipientEmail !== recipient.email || recipientName !== recipient.name) {
+      if (recipientEmail !== recipient.email || recipientName !== recipient.name) {
+        await tx.documentAuditLog.create({
+          data: createDocumentAuditLogData({
+            type: DOCUMENT_AUDIT_LOG_TYPE.RECIPIENT_UPDATED,
+            envelopeId: envelope.id,
+            user: {
+              name: recipientName,
+              email: recipientEmail,
+            },
+            requestMetadata,
+            data: {
+              recipientEmail: recipient.email,
+              recipientName: recipient.name,
+              recipientId: recipient.id,
+              recipientRole: recipient.role,
+              changes: [
+                {
+                  type: RECIPIENT_DIFF_TYPE.NAME,
+                  from: recipient.name,
+                  to: recipientName,
+                },
+                {
+                  type: RECIPIENT_DIFF_TYPE.EMAIL,
+                  from: recipient.email,
+                  to: recipientEmail,
+                },
+              ],
+            },
+          }),
+        });
+      }
+
+      const authOptions = extractDocumentAuthMethods({
+        documentAuth: envelope.authOptions,
+        recipientAuth: recipient.authOptions,
+      });
+
       await tx.documentAuditLog.create({
         data: createDocumentAuditLogData({
-          type: DOCUMENT_AUDIT_LOG_TYPE.RECIPIENT_UPDATED,
+          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_COMPLETED,
           envelopeId: envelope.id,
           user: {
             name: recipientName,
@@ -254,51 +293,16 @@ export const completeDocumentWithToken = async ({
           },
           requestMetadata,
           data: {
-            recipientEmail: recipient.email,
-            recipientName: recipient.name,
+            recipientEmail: recipientEmail,
+            recipientName: recipientName,
             recipientId: recipient.id,
             recipientRole: recipient.role,
-            changes: [
-              {
-                type: RECIPIENT_DIFF_TYPE.NAME,
-                from: recipient.name,
-                to: recipientName,
-              },
-              {
-                type: RECIPIENT_DIFF_TYPE.EMAIL,
-                from: recipient.email,
-                to: recipientEmail,
-              },
-            ],
+            actionAuth: authOptions.derivedRecipientActionAuth,
           },
         }),
       });
-    }
-
-    const authOptions = extractDocumentAuthMethods({
-      documentAuth: envelope.authOptions,
-      recipientAuth: recipient.authOptions,
-    });
-
-    await tx.documentAuditLog.create({
-      data: createDocumentAuditLogData({
-        type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_COMPLETED,
-        envelopeId: envelope.id,
-        user: {
-          name: recipientName,
-          email: recipientEmail,
-        },
-        requestMetadata,
-        data: {
-          recipientEmail: recipientEmail,
-          recipientName: recipientName,
-          recipientId: recipient.id,
-          recipientRole: recipient.role,
-          actionAuth: authOptions.derivedRecipientActionAuth,
-        },
-      }),
-    });
-  });
+    },
+  );
 
   const envelopeWithRelations = await prisma.envelope.findUniqueOrThrow({
     where: { id: envelope.id },
