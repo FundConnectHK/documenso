@@ -397,10 +397,11 @@ model Envelope {
 
   type EnvelopeType
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-  deletedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+  deletedAt        DateTime?
+  signingRevokedAt DateTime?
 
   title   String
   status  DocumentStatus @default(DRAFT)

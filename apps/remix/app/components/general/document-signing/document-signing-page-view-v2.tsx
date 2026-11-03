@@ -4,7 +4,6 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { EnvelopeType, RecipientRole } from '@prisma/client';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, BanIcon, DownloadCloudIcon, Loader, PaperclipIcon } from 'lucide-react';
-import { Link } from 'react-router';
 import { match } from 'ts-pattern';
 
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
@@ -71,6 +70,7 @@ const DocumentSigningPageViewV2Content = () => {
 
   // Always hide powered by branding for recipient pages
   const hidePoweredBy = true;
+  const returnUrl = envelope.documentMeta.redirectUrl || '/';
 
   const isRichTextSigningMode = currentEnvelopeItem
     ? shouldUseRichTextSigningView(currentEnvelopeItem)
@@ -229,10 +229,10 @@ const DocumentSigningPageViewV2Content = () => {
             {!isEmbed && (
               <div className="px-4">
                 <Button asChild variant="ghost" className="w-full justify-start">
-                  <Link to="/">
+                  <a href={returnUrl}>
                     <ArrowLeftIcon className="mr-2 h-4 w-4" />
                     <Trans>Return</Trans>
-                  </Link>
+                  </a>
                 </Button>
               </div>
             )}

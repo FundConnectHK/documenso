@@ -6,6 +6,8 @@ import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-
 import { assertRecipientNotExpired } from '@documenso/lib/utils/recipients';
 import { prisma } from '@documenso/prisma';
 
+import { withLockedSigningSession } from '../document/with-locked-signing-session';
+
 export type RemovedSignedFieldWithTokenOptions = {
   token: string;
   fieldId: number;
@@ -71,39 +73,47 @@ export const removeSignedFieldWithToken = async ({
     throw new Error(`Field ${fieldId} has no recipientId`);
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.field.update({
-      where: {
-        id: field.id,
-      },
-      data: {
-        customText: '',
-        inserted: false,
-      },
-    });
-
-    await tx.signature.deleteMany({
-      where: {
-        fieldId: field.id,
-      },
-    });
-
-    if (recipient.role !== RecipientRole.ASSISTANT) {
-      await tx.documentAuditLog.create({
-        data: createDocumentAuditLogData({
-          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_UNINSERTED,
-          envelopeId: envelope.id,
-          user: {
-            name: recipient.name,
-            email: recipient.email,
-          },
-          requestMetadata,
-          data: {
-            field: field.type,
-            fieldId: field.secondaryId,
-          },
-        }),
+  await withLockedSigningSession(
+    {
+      envelopeId: envelope.id,
+      recipientId: recipient.id,
+      fieldRecipientId: field.recipient.id,
+      token,
+    },
+    async (tx) => {
+      await tx.field.update({
+        where: {
+          id: field.id,
+        },
+        data: {
+          customText: '',
+          inserted: false,
+        },
       });
-    }
-  });
+
+      await tx.signature.deleteMany({
+        where: {
+          fieldId: field.id,
+        },
+      });
+
+      if (recipient.role !== RecipientRole.ASSISTANT) {
+        await tx.documentAuditLog.create({
+          data: createDocumentAuditLogData({
+            type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_FIELD_UNINSERTED,
+            envelopeId: envelope.id,
+            user: {
+              name: recipient.name,
+              email: recipient.email,
+            },
+            requestMetadata,
+            data: {
+              field: field.type,
+              fieldId: field.secondaryId,
+            },
+          }),
+        });
+      }
+    },
+  );
 };

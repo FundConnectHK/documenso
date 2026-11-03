@@ -23,6 +23,8 @@ import {
   ZGetPresignedPostUrlRequestSchema,
   ZUploadPdfRequestSchema,
 } from './files.types';
+import getEnvelopeItemPdfRoute from './routes/get-envelope-item-pdf';
+import getEnvelopeItemPdfByTokenRoute from './routes/get-envelope-item-pdf-by-token';
 
 export const filesRoute = new Hono<HonoEnv>()
   /**
@@ -297,3 +299,8 @@ export const filesRoute = new Hono<HonoEnv>()
       });
     },
   );
+
+// PDF routes for both token and authenticated access. These include the
+// document data ID in the URL so the rendered pages can be cached safely.
+filesRoute.route('/', getEnvelopeItemPdfRoute);
+filesRoute.route('/', getEnvelopeItemPdfByTokenRoute);
