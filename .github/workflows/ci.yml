@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build_app:
     name: Build App
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
   # push 到 staging / release 后镜像构建与推送由 cd.yml 完成
   build_docker:
     name: Build Docker Image (PR only)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout

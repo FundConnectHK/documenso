@@ -13,6 +13,7 @@ on:
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GAR_REGION: europe-west1
+  CLOUD_RUN_REGION: asia-east2
   GAR_REPOSITORY: services
   IMAGE_NAME: contract-service
 
@@ -129,36 +130,31 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      # 密钥在 GitHub → Settings → Environments → staging 里配置（与 production 同名、值不同）
-      # 可选：在 GCP Secret Manager 配好后，把下面 env_vars 改成 secrets: ENV=secret-name:latest
+      # 非敏感配置来自 GitHub Environment；敏感配置直接引用 GCP Secret Manager。
       - name: Deploy to Cloud Run (Staging)
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: contract-service-staging
-          region: ${{ env.GAR_REGION }}
+          region: ${{ env.CLOUD_RUN_REGION }}
           image: ${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: >-
             --allow-unauthenticated
-            --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-staging
-            --vpc-connector=redis-connector-ew1
+            --add-cloudsql-instances=fundconnecthk-489906:asia-east2:fundconnecthk-contracts-db-staging-hk
+            --vpc-connector=redis-connector-staging
+            --service-account=contract-staging-runtime@fundconnecthk-489906.iam.gserviceaccount.com
+            --cpu=2
+            --memory=4Gi
             --vpc-egress=private-ranges-only
           env_vars: |
             NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
             NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
-            NEXT_PRIVATE_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DATABASE_URL }}
-            NEXT_PRIVATE_DIRECT_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DIRECT_DATABASE_URL }}
             NEXT_PRIVATE_JOBS_PROVIDER=${{ vars.NEXT_PRIVATE_JOBS_PROVIDER || secrets.NEXT_PRIVATE_JOBS_PROVIDER }}
-            NEXT_PRIVATE_REDIS_URL=${{ vars.NEXT_PRIVATE_REDIS_URL || secrets.NEXT_PRIVATE_REDIS_URL }}
             NEXT_PRIVATE_BULLMQ_CONCURRENCY=${{ vars.NEXT_PRIVATE_BULLMQ_CONCURRENCY || secrets.NEXT_PRIVATE_BULLMQ_CONCURRENCY }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            NEXT_PRIVATE_ENCRYPTION_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_KEY }}
-            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY }}
             NEXT_PRIVATE_SMTP_TRANSPORT=${{ secrets.NEXT_PRIVATE_SMTP_TRANSPORT }}
             NEXT_PRIVATE_SMTP_HOST=${{ secrets.NEXT_PRIVATE_SMTP_HOST }}
             NEXT_PRIVATE_SMTP_PORT=${{ secrets.NEXT_PRIVATE_SMTP_PORT }}
             NEXT_PRIVATE_SMTP_USERNAME=${{ secrets.NEXT_PRIVATE_SMTP_USERNAME }}
-            NEXT_PRIVATE_SMTP_PASSWORD=${{ secrets.NEXT_PRIVATE_SMTP_PASSWORD }}
             NEXT_PRIVATE_SMTP_FROM_NAME=${{ secrets.NEXT_PRIVATE_SMTP_FROM_NAME }}
             NEXT_PRIVATE_SMTP_FROM_ADDRESS=${{ secrets.NEXT_PRIVATE_SMTP_FROM_ADDRESS }}
             NEXT_PUBLIC_UPLOAD_TRANSPORT=${{ secrets.NEXT_PUBLIC_UPLOAD_TRANSPORT }}
@@ -166,16 +162,23 @@ jobs:
             NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE=${{ secrets.NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE }}
             NEXT_PRIVATE_UPLOAD_REGION=${{ secrets.NEXT_PRIVATE_UPLOAD_REGION }}
             NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
-            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
-            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
             NEXT_PRIVATE_SIGNING_TRANSPORT=local
-            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=${{ secrets.NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS }}
-            NEXT_PRIVATE_SIGNING_PASSPHRASE=${{ secrets.NEXT_PRIVATE_SIGNING_PASSPHRASE }}
+          secrets: |
+            NEXT_PRIVATE_DATABASE_URL=contract-staging-database-url:latest
+            NEXT_PRIVATE_DIRECT_DATABASE_URL=contract-staging-direct-database-url:latest
+            NEXT_PRIVATE_REDIS_URL=contract-staging-redis-url:latest
+            NEXTAUTH_SECRET=contract-staging-nextauth-secret:latest
+            NEXT_PRIVATE_ENCRYPTION_KEY=contract-staging-encryption-key:latest
+            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=contract-staging-encryption-secondary-key:latest
+            NEXT_PRIVATE_SMTP_PASSWORD=contract-staging-smtp-password:latest
+            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=contract-staging-upload-access-key-id:latest
+            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=contract-staging-upload-secret-access-key:latest
+            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=contract-staging-signing-local-file-contents:latest
 
       - name: Show Staging URL
         run: echo "Staging deployed to ${{ steps.deploy.outputs.url }}"
 
-  # ─── 部署到 Production（release 分支）──────────────────────────
+  # ─── 部署到 Production（main 分支）──────────────────────────
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -199,29 +202,25 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: contract-service-prod
-          region: ${{ env.GAR_REGION }}
+          region: ${{ env.CLOUD_RUN_REGION }}
           image: ${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: >-
             --allow-unauthenticated
-            --add-cloudsql-instances=fundconnecthk-489906:europe-west1:fundconnecthk-contracts-db-prod
-            --vpc-connector=redis-connector-ew1
+            --add-cloudsql-instances=fundconnecthk-489906:asia-east2:fundconnecthk-contracts-db-prod-hk
+            --vpc-connector=contract-prod-conn
+            --service-account=contract-prod-runtime@fundconnecthk-489906.iam.gserviceaccount.com
+            --cpu=1
+            --memory=2Gi
             --vpc-egress=private-ranges-only
           env_vars: |
             NEXT_PUBLIC_WEBAPP_URL=${{ secrets.NEXT_PUBLIC_WEBAPP_URL }}
             NEXT_PRIVATE_INTERNAL_WEBAPP_URL=${{ secrets.NEXT_PRIVATE_INTERNAL_WEBAPP_URL }}
-            NEXT_PRIVATE_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DATABASE_URL }}
-            NEXT_PRIVATE_DIRECT_DATABASE_URL=${{ secrets.NEXT_PRIVATE_DIRECT_DATABASE_URL }}
             NEXT_PRIVATE_JOBS_PROVIDER=${{ vars.NEXT_PRIVATE_JOBS_PROVIDER || secrets.NEXT_PRIVATE_JOBS_PROVIDER }}
-            NEXT_PRIVATE_REDIS_URL=${{ vars.NEXT_PRIVATE_REDIS_URL || secrets.NEXT_PRIVATE_REDIS_URL }}
             NEXT_PRIVATE_BULLMQ_CONCURRENCY=${{ vars.NEXT_PRIVATE_BULLMQ_CONCURRENCY || secrets.NEXT_PRIVATE_BULLMQ_CONCURRENCY }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            NEXT_PRIVATE_ENCRYPTION_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_KEY }}
-            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${{ secrets.NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY }}
             NEXT_PRIVATE_SMTP_TRANSPORT=${{ secrets.NEXT_PRIVATE_SMTP_TRANSPORT }}
             NEXT_PRIVATE_SMTP_HOST=${{ secrets.NEXT_PRIVATE_SMTP_HOST }}
             NEXT_PRIVATE_SMTP_PORT=${{ secrets.NEXT_PRIVATE_SMTP_PORT }}
             NEXT_PRIVATE_SMTP_USERNAME=${{ secrets.NEXT_PRIVATE_SMTP_USERNAME }}
-            NEXT_PRIVATE_SMTP_PASSWORD=${{ secrets.NEXT_PRIVATE_SMTP_PASSWORD }}
             NEXT_PRIVATE_SMTP_FROM_NAME=${{ secrets.NEXT_PRIVATE_SMTP_FROM_NAME }}
             NEXT_PRIVATE_SMTP_FROM_ADDRESS=${{ secrets.NEXT_PRIVATE_SMTP_FROM_ADDRESS }}
             NEXT_PUBLIC_UPLOAD_TRANSPORT=${{ secrets.NEXT_PUBLIC_UPLOAD_TRANSPORT }}
@@ -229,11 +228,18 @@ jobs:
             NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE=${{ secrets.NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE }}
             NEXT_PRIVATE_UPLOAD_REGION=${{ secrets.NEXT_PRIVATE_UPLOAD_REGION }}
             NEXT_PRIVATE_UPLOAD_BUCKET=${{ secrets.NEXT_PRIVATE_UPLOAD_BUCKET }}
-            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${{ secrets.NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID }}
-            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${{ secrets.NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY }}
             NEXT_PRIVATE_SIGNING_TRANSPORT=local
-            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=${{ secrets.NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS }}
-            NEXT_PRIVATE_SIGNING_PASSPHRASE=${{ secrets.NEXT_PRIVATE_SIGNING_PASSPHRASE }}
+          secrets: |
+            NEXT_PRIVATE_DATABASE_URL=contract-prod-database-url:latest
+            NEXT_PRIVATE_DIRECT_DATABASE_URL=contract-prod-direct-database-url:latest
+            NEXT_PRIVATE_REDIS_URL=contract-prod-redis-url:latest
+            NEXTAUTH_SECRET=contract-prod-nextauth-secret:latest
+            NEXT_PRIVATE_ENCRYPTION_KEY=contract-prod-encryption-key:latest
+            NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=contract-prod-encryption-secondary-key:latest
+            NEXT_PRIVATE_SMTP_PASSWORD=contract-prod-smtp-password:latest
+            NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=contract-prod-upload-access-key-id:latest
+            NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=contract-prod-upload-secret-access-key:latest
+            NEXT_PRIVATE_SIGNING_LOCAL_FILE_CONTENTS=contract-prod-signing-local-file-contents:latest
 
       - name: Show Production URL
         run: echo "Production deployed to ${{ steps.deploy.outputs.url }}"
