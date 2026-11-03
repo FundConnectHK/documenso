@@ -58,6 +58,10 @@ jobs:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
     needs: setup
+    # Bind the job to the resolved GitHub environment so its OIDC token carries
+    # the production/staging environment claim required by GCP WIF.
+    environment:
+      name: ${{ needs.setup.outputs.environment }}
     permissions:
       contents: read
       id-token: write
