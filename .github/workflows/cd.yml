@@ -1,14 +1,14 @@
 name: Deploy to Cloud Run
 
 # Fork 分支约定（便于合并上游 Documenso 官方更新）：
-# - main：日常开发与合并 upstream/main，只跑 CI，不触发本部署。
+# - main：生产发布 → contract-service-prod（与生产 WIF 的 main-only 条件一致）。
 # - staging：合并/快进到待测的 main 后 push → contract-test（Cloud Run staging）。
-# - release：生产发布（与 deploy.yml「main → release」晋升一致）。
+# - release：保留给上游容器发布，不触发 FundConnectHK Cloud Run 部署。
 on:
   push:
     branches:
+      - main
       - staging
-      - release
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${GITHUB_REF_NAME}" = "release" ]; then
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
             ENVIRONMENT="production"
             SERVICE="contract-service-prod"
           else
