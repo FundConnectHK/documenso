@@ -10,6 +10,7 @@ import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import type { EnvelopeIdOptions } from '../../utils/envelope';
 import { mapSecondaryIdToDocumentId, unsafeBuildEnvelopeIdQuery } from '../../utils/envelope';
 import { assertRecipientNotExpired } from '../../utils/recipients';
+import { withLockedSigningSession } from './with-locked-signing-session';
 
 export type RejectDocumentWithTokenOptions = {
   token: string;
@@ -52,36 +53,40 @@ export async function rejectDocumentWithToken({
   assertRecipientNotExpired(recipient);
 
   // Update the recipient status to rejected
-  const [updatedRecipient] = await prisma.$transaction([
-    prisma.recipient.update({
-      where: {
-        id: recipient.id,
-      },
-      data: {
-        signedAt: new Date(),
-        signingStatus: SigningStatus.REJECTED,
-        rejectionReason: reason,
-      },
-    }),
-    prisma.documentAuditLog.create({
-      data: createDocumentAuditLogData({
-        envelopeId: envelope.id,
-        type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_REJECTED,
-        user: {
-          name: recipient.name,
-          email: recipient.email,
+  const updatedRecipient = await withLockedSigningSession(
+    { envelopeId: envelope.id, recipientId: recipient.id, token },
+    async (tx) => {
+      const updated = await tx.recipient.update({
+        where: {
+          id: recipient.id,
         },
         data: {
-          recipientEmail: recipient.email,
-          recipientName: recipient.name,
-          recipientId: recipient.id,
-          recipientRole: recipient.role,
-          reason,
+          signedAt: new Date(),
+          signingStatus: SigningStatus.REJECTED,
+          rejectionReason: reason,
         },
-        requestMetadata,
-      }),
-    }),
-  ]);
+      });
+      await tx.documentAuditLog.create({
+        data: createDocumentAuditLogData({
+          envelopeId: envelope.id,
+          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_RECIPIENT_REJECTED,
+          user: {
+            name: recipient.name,
+            email: recipient.email,
+          },
+          data: {
+            recipientEmail: recipient.email,
+            recipientName: recipient.name,
+            recipientId: recipient.id,
+            recipientRole: recipient.role,
+            reason,
+          },
+          requestMetadata,
+        }),
+      });
+      return updated;
+    },
+  );
 
   const legacyDocumentId = mapSecondaryIdToDocumentId(envelope.secondaryId);
 
