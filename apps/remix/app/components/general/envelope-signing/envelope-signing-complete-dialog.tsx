@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Trans, useLingui } from '@lingui/react/macro';
 import { FieldType } from '@prisma/client';
@@ -6,6 +6,7 @@ import { useNavigate, useRevalidator, useSearchParams } from 'react-router';
 
 import { useAnalytics } from '@documenso/lib/client-only/hooks/use-analytics';
 import { useCurrentEnvelopeRender } from '@documenso/lib/client-only/providers/envelope-render-provider';
+import { PDF_VIEWER_CONTENT_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { isBase64Image } from '@documenso/lib/constants/signatures';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
@@ -27,8 +28,12 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
 import { DocumentSigningCompleteDialog } from '../document-signing/document-signing-complete-dialog';
-import { useOptionalDocumentSigningReadProgress } from '../document-signing/document-signing-read-progress-provider';
 import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
+
+type PendingFieldFocus = {
+  envelopeItemId: string;
+  page: number;
+};
 
 export const EnvelopeSignerCompleteDialog = () => {
   const navigate = useNavigate();
@@ -40,6 +45,7 @@ export const EnvelopeSignerCompleteDialog = () => {
 
   const [searchParams] = useSearchParams();
   const [showIncompleteFieldsModal, setShowIncompleteFieldsModal] = useState(false);
+  const [pendingFieldFocus, setPendingFieldFocus] = useState<PendingFieldFocus | null>(null);
 
   const {
     isDirectTemplate,
@@ -53,7 +59,6 @@ export const EnvelopeSignerCompleteDialog = () => {
   } = useRequiredEnvelopeSigningContext();
 
   const { currentEnvelopeItem, setCurrentEnvelopeItem } = useCurrentEnvelopeRender();
-  const readProgress = useOptionalDocumentSigningReadProgress();
 
   const { onDocumentCompleted, onDocumentError } = useEmbedSigningContext() || {};
 
@@ -75,14 +80,56 @@ export const EnvelopeSignerCompleteDialog = () => {
       setCurrentEnvelopeItem(nextField.envelopeItemId);
     }
 
-    const fieldTooltip = document.querySelector(`#field-tooltip`);
+    setShowPendingFieldTooltip(true);
+    setPendingFieldFocus({
+      envelopeItemId: nextField.envelopeItemId,
+      page: nextField.page,
+    });
+  };
 
-    if (fieldTooltip) {
-      fieldTooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  useEffect(() => {
+    if (!pendingFieldFocus || currentEnvelopeItem?.id !== pendingFieldFocus.envelopeItemId) {
+      return;
     }
 
-    setShowPendingFieldTooltip(true);
-  };
+    const documentContainer = document.querySelector('.embed--DocumentContainer');
+
+    if (!documentContainer) {
+      return;
+    }
+
+    let hasRequestedPageScroll = false;
+
+    const focusPendingField = () => {
+      const fieldTooltip = document.querySelector('#field-tooltip');
+
+      if (fieldTooltip) {
+        fieldTooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setPendingFieldFocus(null);
+        return;
+      }
+
+      const pdfContent = document.querySelector(PDF_VIEWER_CONTENT_SELECTOR);
+
+      if (pdfContent && !hasRequestedPageScroll) {
+        hasRequestedPageScroll = true;
+        window.requestAnimationFrame(() => {
+          pdfContent.setAttribute('data-scroll-to-page', String(pendingFieldFocus.page));
+        });
+      }
+    };
+
+    const observer = new MutationObserver(focusPendingField);
+    observer.observe(documentContainer, { childList: true, subtree: true });
+    focusPendingField();
+
+    const timeout = window.setTimeout(() => setPendingFieldFocus(null), 15_000);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+    };
+  }, [currentEnvelopeItem?.id, pendingFieldFocus]);
 
   const handleOnCompleteClick = async (
     nextSigner?: { name: string; email: string },
@@ -261,15 +308,6 @@ export const EnvelopeSignerCompleteDialog = () => {
         position="center"
         forceCompleteButton={isRichTextSigningMode}
         onIncompleteFieldsError={() => setShowIncompleteFieldsModal(true)}
-        requireReadToBottom={Boolean(readProgress?.requiresScroll)}
-        hasReadToBottom={readProgress?.hasReadToBottom ?? true}
-        onReadCompleteRequired={() => {
-          toast({
-            title: t`提示`,
-            description: t`確認前請先閱讀完合同並簽署`,
-            variant: 'destructive',
-          });
-        }}
       />
 
       <Dialog open={showIncompleteFieldsModal} onOpenChange={setShowIncompleteFieldsModal}>
