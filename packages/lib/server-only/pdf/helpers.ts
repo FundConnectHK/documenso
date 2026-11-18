@@ -6,6 +6,11 @@ import { match } from 'ts-pattern';
 
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 
+export const PDF_TEXT_FONT_FAMILY =
+  'Inter, "Noto Sans Chinese", "Noto Sans Japanese", "Noto Sans Korean"';
+export const PDF_HANDWRITING_FONT_FAMILY =
+  'Caveat, "Noto Sans Chinese", "Noto Sans Japanese", "Noto Sans Korean"';
+
 /**
  * Ensure all required fonts are registered in the skia-canvas FontLibrary.
  *

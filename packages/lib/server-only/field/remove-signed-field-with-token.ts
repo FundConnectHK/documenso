@@ -1,4 +1,4 @@
-import { DocumentStatus, RecipientRole, SigningStatus } from '@prisma/client';
+import { DocumentStatus, FieldType, RecipientRole, SigningStatus } from '@prisma/client';
 
 import { DOCUMENT_AUDIT_LOG_TYPE } from '@documenso/lib/types/document-audit-logs';
 import type { RequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
@@ -6,7 +6,9 @@ import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-
 import { assertRecipientNotExpired } from '@documenso/lib/utils/recipients';
 import { prisma } from '@documenso/prisma';
 
+import { isPISigningMetadata } from '../../utils/pi-signing-metadata';
 import { withLockedSigningSession } from '../document/with-locked-signing-session';
+import { clearPISigningMetadata } from './insert-pi-signing-metadata';
 
 export type RemovedSignedFieldWithTokenOptions = {
   token: string;
@@ -28,6 +30,7 @@ export const removeSignedFieldWithToken = async ({
   const field = await prisma.field.findFirstOrThrow({
     where: {
       id: fieldId,
+      envelopeId: recipient.envelopeId,
       recipient: {
         ...(recipient.role !== RecipientRole.ASSISTANT
           ? {
@@ -50,6 +53,9 @@ export const removeSignedFieldWithToken = async ({
   });
 
   const { envelope } = field;
+  if (isPISigningMetadata(envelope.externalId, field)) {
+    throw new Error('PI names and dates are managed by the signing service');
+  }
 
   if (!envelope) {
     throw new Error(`Document not found for field ${field.id}`);
@@ -96,6 +102,13 @@ export const removeSignedFieldWithToken = async ({
           fieldId: field.id,
         },
       });
+
+      if (
+        isPISigningMetadata(envelope.externalId, { type: FieldType.DATE }) &&
+        (field.type === FieldType.SIGNATURE || field.type === FieldType.FREE_SIGNATURE)
+      ) {
+        await clearPISigningMetadata(tx, field, field.recipient, requestMetadata);
+      }
 
       if (recipient.role !== RecipientRole.ASSISTANT) {
         await tx.documentAuditLog.create({

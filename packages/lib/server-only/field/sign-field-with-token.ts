@@ -25,9 +25,11 @@ import {
 } from '../../types/field-meta';
 import type { RequestMetadata } from '../../universal/extract-request-metadata';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
+import { isPISigningMetadata } from '../../utils/pi-signing-metadata';
 import { assertRecipientNotExpired } from '../../utils/recipients';
 import { validateFieldAuth } from '../document/validate-field-auth';
 import { withLockedSigningSession } from '../document/with-locked-signing-session';
+import { insertPISigningMetadata } from './insert-pi-signing-metadata';
 
 export type SignFieldWithTokenOptions = {
   token: string;
@@ -67,6 +69,7 @@ export const signFieldWithToken = async ({
   const field = await prisma.field.findFirstOrThrow({
     where: {
       id: fieldId,
+      envelopeId: recipient.envelopeId,
       recipient: {
         ...(recipient.role !== RecipientRole.ASSISTANT
           ? {
@@ -93,6 +96,9 @@ export const signFieldWithToken = async ({
   });
 
   const { envelope } = field;
+  if (isPISigningMetadata(envelope.externalId, field)) {
+    throw new Error('PI names and dates are managed by the signing service');
+  }
 
   if (!envelope) {
     throw new Error(`Document not found for field ${field.id}`);
@@ -246,6 +252,12 @@ export const signFieldWithToken = async ({
       token,
     },
     async (tx) => {
+      if (isPISigningMetadata(envelope.externalId, { type: FieldType.DATE })) {
+        const current = await tx.field.findUniqueOrThrow({ where: { id: field.id } });
+        if (current.inserted) {
+          throw new Error('PI signature has already been inserted');
+        }
+      }
       const updatedField = await tx.field.update({
         where: {
           id: field.id,
@@ -277,6 +289,18 @@ export const signFieldWithToken = async ({
         Object.assign(updatedField, {
           signature,
         });
+
+        if (recipient.role === RecipientRole.SIGNER && field.recipientId === recipient.id) {
+          await insertPISigningMetadata({
+            tx,
+            envelopeId: envelope.id,
+            externalId: envelope.externalId,
+            recipient,
+            signedAt: new Date(),
+            signatureFieldId: field.id,
+            requestMetadata,
+          });
+        }
       }
 
       await tx.documentAuditLog.create({

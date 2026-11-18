@@ -6,6 +6,8 @@ import { getOptionalSession } from '@documenso/auth/server/lib/utils/get-session
 import { APP_DOCUMENT_UPLOAD_SIZE_LIMIT } from '@documenso/lib/constants/app';
 import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
 import { verifyEmbeddingPresignToken } from '@documenso/lib/server-only/embedding-presign/verify-embedding-presign-token';
+import { getEnvelopeById } from '@documenso/lib/server-only/envelope/get-envelope-by-id';
+import { getApiTokenByToken } from '@documenso/lib/server-only/public-api/get-api-token-by-token';
 import { getTeamById } from '@documenso/lib/server-only/team/get-team';
 import { putNormalizedPdfFileServerSide } from '@documenso/lib/universal/upload/put-file.server';
 import { getPresignPostUrl } from '@documenso/lib/universal/upload/server-actions';
@@ -155,27 +157,47 @@ export const filesRoute = new Hono<HonoEnv>()
     async (c) => {
       const { envelopeId, envelopeItemId, version } = c.req.valid('param');
 
-      const envelope = await prisma.envelope.findFirst({
-        where: {
-          id: envelopeId,
-        },
-        include: {
-          envelopeItems: {
-            where: {
-              id: envelopeItemId,
-            },
-            include: {
-              documentData: true,
-            },
-          },
-        },
+      // An envelope/item identifier is not an access credential. Authenticate
+      // first; API tokens remain restricted to their team and current owner access.
+      const authorization = c.req.header('authorization');
+      let userId: number | undefined;
+      let apiTeamId: number | undefined;
+      if (authorization !== undefined) {
+        const token = authorization.trim().replace(/^Bearer\s+/i, '');
+        if (!token || /\s/.test(token)) {
+          return c.json({ error: 'Unauthorized' }, 401);
+        }
+        const apiToken = await getApiTokenByToken({ token }).catch(() => null);
+        if (!apiToken || apiToken.user.disabled) {
+          return c.json({ error: 'Unauthorized' }, 401);
+        }
+        userId = apiToken.user.id;
+        apiTeamId = apiToken.teamId;
+      } else {
+        const session = await getOptionalSession(c);
+        userId = session.user?.id;
+      }
+      if (!userId) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+      const identity = await prisma.envelope.findFirst({
+        where: { id: envelopeId, deletedAt: null, ...(apiTeamId ? { teamId: apiTeamId } : {}) },
+        select: { teamId: true },
       });
+      const envelope = identity
+        ? await getEnvelopeById({
+            id: { type: 'envelopeId', id: envelopeId },
+            userId,
+            teamId: identity.teamId,
+            type: null,
+          }).catch(() => null)
+        : null;
 
-      if (!envelope) {
+      if (!envelope || envelope.deletedAt) {
         return c.json({ error: 'Envelope not found' }, 404);
       }
 
-      const [envelopeItem] = envelope.envelopeItems;
+      const envelopeItem = envelope.envelopeItems.find((item) => item.id === envelopeItemId);
 
       if (!envelopeItem) {
         return c.json({ error: 'Envelope item not found' }, 404);

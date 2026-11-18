@@ -21,7 +21,7 @@ import {
 } from '../../constants/recipient-roles';
 import type { TDocumentAuditLogBaseSchema } from '../../types/document-audit-logs';
 import { svgToPng } from '../../utils/images/svg-to-png';
-import { ensureFontLibrary } from './helpers';
+import { PDF_HANDWRITING_FONT_FAMILY, PDF_TEXT_FONT_FAMILY, ensureFontLibrary } from './helpers';
 
 type ColumnWidths = [number, number, number];
 
@@ -117,7 +117,7 @@ const renderLabelAndText = (options: RenderLabelAndTextOptions) => {
     y: 0,
     text: `${options.label}: `,
     fontStyle: fontMedium,
-    fontFamily: 'Inter',
+    fontFamily: PDF_TEXT_FONT_FAMILY,
     fill: labelFill,
     fontSize: textSm,
   });
@@ -128,7 +128,7 @@ const renderLabelAndText = (options: RenderLabelAndTextOptions) => {
     x: label.width(),
     y: 0,
     width: width - label.width(),
-    fontFamily: 'Inter',
+    fontFamily: PDF_TEXT_FONT_FAMILY,
     text: options.text,
     fill: valueFill,
     wrap: 'char',
@@ -155,7 +155,7 @@ const renderRowHeader = (options: RenderRowHeaderOptions) => {
   const headerRow = new Konva.Group();
 
   const headerFontStyling = {
-    fontFamily: 'Inter',
+    fontFamily: PDF_TEXT_FONT_FAMILY,
     fontSize: 11,
     fontStyle: fontMedium,
     verticalAlign: 'middle',
@@ -211,7 +211,7 @@ const renderColumnOne = (options: RenderColumnOptions) => {
 
   const textFontStyling = {
     x: 0,
-    fontFamily: 'Inter',
+    fontFamily: PDF_TEXT_FONT_FAMILY,
     wrap: 'char',
     lineHeight: 1.2,
     fill: textMutedForeground,
@@ -305,7 +305,7 @@ const renderColumnTwo = (options: RenderColumnOptions) => {
         x: 2,
         text: recipient.signatureField?.signature?.typedSignature,
         padding: 4,
-        fontFamily: 'Caveat',
+        fontFamily: PDF_HANDWRITING_FONT_FAMILY,
         fontSize: 16,
         align: 'center',
         verticalAlign: 'middle',
@@ -357,7 +357,7 @@ const renderColumnTwo = (options: RenderColumnOptions) => {
       text: `${i18n._(msg`Signature ID`)}:`,
       fill: textMutedForeground,
       width: columnWidth,
-      fontFamily: 'Inter',
+      fontFamily: PDF_TEXT_FONT_FAMILY,
       fontSize: textSm,
       fontStyle: fontMedium,
       lineHeight: 1.4,
@@ -381,7 +381,7 @@ const renderColumnTwo = (options: RenderColumnOptions) => {
       y: 0,
       text: 'N/A',
       fill: textMutedForeground,
-      fontFamily: 'Inter',
+      fontFamily: PDF_TEXT_FONT_FAMILY,
       fontSize: textSm,
     });
     column.add(naText);
@@ -575,7 +575,7 @@ const renderBranding = async ({ qrToken, i18n }: { qrToken: string | null; i18n:
     verticalAlign: 'middle',
     text: i18n._(msg`Signing certificate provided by`) + ':',
     fontStyle: fontMedium,
-    fontFamily: 'Inter',
+    fontFamily: PDF_TEXT_FONT_FAMILY,
     fontSize: textSm,
     height: brandingHeight,
   });
@@ -774,7 +774,7 @@ export async function renderCertificate({
       height: pageTopMargin,
       verticalAlign: 'middle',
       text: i18n._(msg`Signing Certificate`),
-      fontFamily: 'Inter',
+      fontFamily: PDF_TEXT_FONT_FAMILY,
       fontSize: titleFontSize,
       fontStyle: '700',
     });

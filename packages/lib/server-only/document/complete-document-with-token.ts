@@ -19,6 +19,7 @@ import {
   isFieldUnsignedAndRequired,
 } from '@documenso/lib/utils/advanced-fields-helpers';
 import { createDocumentAuditLogData } from '@documenso/lib/utils/document-audit-logs';
+import { isPISigningMetadata } from '@documenso/lib/utils/pi-signing-metadata';
 import { prisma } from '@documenso/prisma';
 
 import { AppError, AppErrorCode } from '../../errors/app-error';
@@ -33,6 +34,7 @@ import { extractDocumentAuthMethods } from '../../utils/document-auth';
 import type { EnvelopeIdOptions } from '../../utils/envelope';
 import { mapSecondaryIdToDocumentId, unsafeBuildEnvelopeIdQuery } from '../../utils/envelope';
 import { assertRecipientNotExpired } from '../../utils/recipients';
+import { insertPISigningMetadata } from '../field/insert-pi-signing-metadata';
 import { getIsRecipientsTurnToSign } from '../recipient/get-is-recipient-turn';
 import { triggerWebhook } from '../webhooks/trigger/trigger-webhook';
 import { isRecipientAuthorized } from './is-recipient-authorized';
@@ -131,8 +133,20 @@ export const completeDocumentWithToken = async ({
     },
   });
 
-  if (fieldsContainUnsignedRequiredField(fields)) {
-    const unsignedFieldLabels = fields
+  const manualFields = fields.filter((field) => !isPISigningMetadata(envelope.externalId, field));
+  if (
+    isPISigningMetadata(envelope.externalId, { type: FieldType.DATE }) &&
+    recipient.role === RecipientRole.SIGNER &&
+    !manualFields.some(
+      (field) => field.type === FieldType.SIGNATURE || field.type === FieldType.FREE_SIGNATURE,
+    )
+  ) {
+    throw new AppError(AppErrorCode.INVALID_REQUEST, {
+      message: 'PI signer has no signature field',
+    });
+  }
+  if (fieldsContainUnsignedRequiredField(manualFields)) {
+    const unsignedFieldLabels = manualFields
       .filter(isFieldUnsignedAndRequired)
       .map((f) => f.customText || f.type)
       .filter(Boolean);
@@ -234,13 +248,45 @@ export const completeDocumentWithToken = async ({
   await withLockedSigningSession(
     { envelopeId: envelope.id, recipientId: recipient.id, token },
     async (tx) => {
+      if (isPISigningMetadata(envelope.externalId, { type: FieldType.DATE })) {
+        const currentFields = await tx.field.findMany({
+          where: { envelopeId: envelope.id, recipientId: recipient.id },
+          include: { signature: true },
+        });
+        const currentManual = currentFields.filter(
+          (field) => !isPISigningMetadata(envelope.externalId, field),
+        );
+        const signatures = currentManual.filter(
+          (field) => field.type === FieldType.SIGNATURE || field.type === FieldType.FREE_SIGNATURE,
+        );
+        if (
+          !signatures.length ||
+          fieldsContainUnsignedRequiredField(currentManual) ||
+          signatures.some((field) => !field.inserted || !field.signature)
+        ) {
+          throw new AppError(AppErrorCode.UNSIGNED_FIELDS, {
+            message: 'PI signatures are incomplete',
+          });
+        }
+      }
+      // The printed dates and completion evidence use the same server instant.
+      const signedAt = new Date();
+      await insertPISigningMetadata({
+        tx,
+        envelopeId: envelope.id,
+        externalId: envelope.externalId,
+        recipient: { ...recipient, name: recipientName, email: recipientEmail },
+        signedAt,
+        refresh: true,
+        requestMetadata,
+      });
       await tx.recipient.update({
         where: {
           id: recipient.id,
         },
         data: {
           signingStatus: SigningStatus.SIGNED,
-          signedAt: new Date(),
+          signedAt,
           name: recipientName,
           email: recipientEmail,
         },

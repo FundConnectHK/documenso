@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Trans } from '@lingui/react/macro';
 import type { Field } from '@prisma/client';
@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router';
 import { P, match } from 'ts-pattern';
 
 import { useAnalytics } from '@documenso/lib/client-only/hooks/use-analytics';
+import type { PageRenderData } from '@documenso/lib/client-only/providers/envelope-render-provider';
 import { DEFAULT_DOCUMENT_DATE_FORMAT } from '@documenso/lib/constants/date-formats';
 import { PDF_VIEWER_PAGE_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { DEFAULT_DOCUMENT_TIME_ZONE } from '@documenso/lib/constants/time-zones';
@@ -24,6 +25,7 @@ import type { CompletedField } from '@documenso/lib/types/fields';
 import { isFieldUnsignedAndRequired } from '@documenso/lib/utils/advanced-fields-helpers';
 import { getDocumentDataUrlForPdfViewer } from '@documenso/lib/utils/envelope-download';
 import { validateFieldsInserted } from '@documenso/lib/utils/fields';
+import { isPISigningMetadata } from '@documenso/lib/utils/pi-signing-metadata';
 import type { FieldWithSignatureAndFieldMeta } from '@documenso/prisma/types/field-with-signature-and-fieldmeta';
 import type { RecipientWithFields } from '@documenso/prisma/types/recipient-with-fields';
 import { trpc } from '@documenso/trpc/react';
@@ -50,6 +52,7 @@ import PDFViewerLazy from '~/components/general/pdf-viewer/pdf-viewer-lazy';
 
 import { useRequiredDocumentSigningAuthContext } from './document-signing-auth-provider';
 import { DocumentSigningCompleteDialog } from './document-signing-complete-dialog';
+import { DocumentSigningPIMetadata } from './document-signing-pi-metadata';
 import { DocumentSigningRecipientProvider } from './document-signing-recipient-provider';
 
 export type DocumentSigningPageViewV1Props = {
@@ -94,9 +97,13 @@ export const DocumentSigningPageViewV1 = ({
   // Keep the loading state going if successful since the redirect may take some time.
   const isSubmitting = isPending || isSuccess;
 
+  const manualFields = useMemo(
+    () => fields.filter((field) => !isPISigningMetadata(document.externalId, field)),
+    [fields, document.externalId],
+  );
   const fieldsRequiringValidation = useMemo(
-    () => fields.filter(isFieldUnsignedAndRequired),
-    [fields],
+    () => manualFields.filter(isFieldUnsignedAndRequired),
+    [manualFields],
   );
 
   const fieldsValidated = () => {
@@ -142,6 +149,29 @@ export const DocumentSigningPageViewV1 = ({
   const selectedSigner = allRecipients?.find((r) => r.id === selectedSignerId);
   const targetSigner =
     recipient.role === RecipientRole.ASSISTANT && selectedSigner ? selectedSigner : null;
+
+  const renderPIMetadata = useCallback(
+    ({ pageData }: { pageData: PageRenderData }) => (
+      <>
+        {[
+          ...fields.filter(
+            (field) =>
+              recipient.role !== RecipientRole.ASSISTANT ||
+              field.recipientId === selectedSigner?.id,
+          ),
+          ...completedFields,
+        ]
+          .filter(
+            (field) =>
+              field.page === pageData.pageNumber && isPISigningMetadata(document.externalId, field),
+          )
+          .map((field) => (
+            <DocumentSigningPIMetadata key={field.id} field={field} pageData={pageData} />
+          ))}
+      </>
+    ),
+    [fields, completedFields, document.externalId, recipient.role, selectedSigner?.id],
+  );
 
   const nextRecipient = useMemo(() => {
     if (!documentMeta?.signingOrder || documentMeta.signingOrder !== 'SEQUENTIAL') {
@@ -284,6 +314,7 @@ export const DocumentSigningPageViewV1 = ({
                     presignToken: undefined,
                   })}
                   scrollParentRef="window"
+                  customPageRenderer={renderPIMetadata}
                 />
               </CardContent>
             </Card>
@@ -317,7 +348,7 @@ export const DocumentSigningPageViewV1 = ({
                         <DocumentSigningCompleteDialog
                           isSubmitting={isSubmitting}
                           documentTitle={document.title}
-                          fields={fields}
+                          fields={manualFields}
                           fieldsValidated={fieldsValidated}
                           disabled={!isRecipientsTurn}
                           onSignatureComplete={async (nextSigner) =>
@@ -381,7 +412,7 @@ export const DocumentSigningPageViewV1 = ({
                 <DocumentSigningForm
                   document={document}
                   recipient={recipient}
-                  fields={fields}
+                  fields={manualFields}
                   isRecipientsTurn={isRecipientsTurn}
                   allRecipients={allRecipients}
                   setSelectedSignerId={setSelectedSignerId}
@@ -397,12 +428,14 @@ export const DocumentSigningPageViewV1 = ({
 
         <DocumentReadOnlyFields
           documentMeta={documentMeta || undefined}
-          fields={completedFields}
+          fields={completedFields.filter(
+            (field) => !isPISigningMetadata(document.externalId, field),
+          )}
           showRecipientTooltip={true}
         />
 
         {recipient.role !== RecipientRole.ASSISTANT && (
-          <DocumentSigningAutoSign recipient={recipient} fields={fields} />
+          <DocumentSigningAutoSign recipient={recipient} fields={manualFields} />
         )}
 
         <ElementVisible target={PDF_VIEWER_PAGE_SELECTOR}>
@@ -413,69 +446,75 @@ export const DocumentSigningPageViewV1 = ({
                 field.recipientId === selectedSigner?.id,
             )
             .map((field) =>
-              match(field.type)
-                .with(FieldType.SIGNATURE, () => (
-                  <DocumentSigningSignatureField
-                    key={field.id}
-                    field={field}
-                    typedSignatureEnabled={documentMeta?.typedSignatureEnabled}
-                    uploadSignatureEnabled={documentMeta?.uploadSignatureEnabled}
-                    drawSignatureEnabled={documentMeta?.drawSignatureEnabled}
-                  />
-                ))
-                .with(FieldType.INITIALS, () => (
-                  <DocumentSigningInitialsField key={field.id} field={field} />
-                ))
-                .with(FieldType.NAME, () => (
-                  <DocumentSigningNameField key={field.id} field={field} />
-                ))
-                .with(FieldType.DATE, () => (
-                  <DocumentSigningDateField
-                    key={field.id}
-                    field={field}
-                    dateFormat={documentMeta?.dateFormat ?? DEFAULT_DOCUMENT_DATE_FORMAT}
-                    timezone={documentMeta?.timezone ?? DEFAULT_DOCUMENT_TIME_ZONE}
-                  />
-                ))
-                .with(FieldType.EMAIL, () => (
-                  <DocumentSigningEmailField key={field.id} field={field} />
-                ))
-                .with(FieldType.TEXT, () => {
-                  const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
-                    ...field,
-                    fieldMeta: field.fieldMeta ? ZTextFieldMeta.parse(field.fieldMeta) : null,
-                  };
-                  return <DocumentSigningTextField key={field.id} field={fieldWithMeta} />;
-                })
-                .with(FieldType.NUMBER, () => {
-                  const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
-                    ...field,
-                    fieldMeta: field.fieldMeta ? ZNumberFieldMeta.parse(field.fieldMeta) : null,
-                  };
-                  return <DocumentSigningNumberField key={field.id} field={fieldWithMeta} />;
-                })
-                .with(FieldType.RADIO, () => {
-                  const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
-                    ...field,
-                    fieldMeta: field.fieldMeta ? ZRadioFieldMeta.parse(field.fieldMeta) : null,
-                  };
-                  return <DocumentSigningRadioField key={field.id} field={fieldWithMeta} />;
-                })
-                .with(FieldType.CHECKBOX, () => {
-                  const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
-                    ...field,
-                    fieldMeta: field.fieldMeta ? ZCheckboxFieldMeta.parse(field.fieldMeta) : null,
-                  };
-                  return <DocumentSigningCheckboxField key={field.id} field={fieldWithMeta} />;
-                })
-                .with(FieldType.DROPDOWN, () => {
-                  const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
-                    ...field,
-                    fieldMeta: field.fieldMeta ? ZDropdownFieldMeta.parse(field.fieldMeta) : null,
-                  };
-                  return <DocumentSigningDropdownField key={field.id} field={fieldWithMeta} />;
-                })
-                .otherwise(() => null),
+              isPISigningMetadata(document.externalId, field)
+                ? null
+                : match(field.type)
+                    .with(FieldType.SIGNATURE, () => (
+                      <DocumentSigningSignatureField
+                        key={field.id}
+                        field={field}
+                        typedSignatureEnabled={documentMeta?.typedSignatureEnabled}
+                        uploadSignatureEnabled={documentMeta?.uploadSignatureEnabled}
+                        drawSignatureEnabled={documentMeta?.drawSignatureEnabled}
+                      />
+                    ))
+                    .with(FieldType.INITIALS, () => (
+                      <DocumentSigningInitialsField key={field.id} field={field} />
+                    ))
+                    .with(FieldType.NAME, () => (
+                      <DocumentSigningNameField key={field.id} field={field} />
+                    ))
+                    .with(FieldType.DATE, () => (
+                      <DocumentSigningDateField
+                        key={field.id}
+                        field={field}
+                        dateFormat={documentMeta?.dateFormat ?? DEFAULT_DOCUMENT_DATE_FORMAT}
+                        timezone={documentMeta?.timezone ?? DEFAULT_DOCUMENT_TIME_ZONE}
+                      />
+                    ))
+                    .with(FieldType.EMAIL, () => (
+                      <DocumentSigningEmailField key={field.id} field={field} />
+                    ))
+                    .with(FieldType.TEXT, () => {
+                      const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
+                        ...field,
+                        fieldMeta: field.fieldMeta ? ZTextFieldMeta.parse(field.fieldMeta) : null,
+                      };
+                      return <DocumentSigningTextField key={field.id} field={fieldWithMeta} />;
+                    })
+                    .with(FieldType.NUMBER, () => {
+                      const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
+                        ...field,
+                        fieldMeta: field.fieldMeta ? ZNumberFieldMeta.parse(field.fieldMeta) : null,
+                      };
+                      return <DocumentSigningNumberField key={field.id} field={fieldWithMeta} />;
+                    })
+                    .with(FieldType.RADIO, () => {
+                      const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
+                        ...field,
+                        fieldMeta: field.fieldMeta ? ZRadioFieldMeta.parse(field.fieldMeta) : null,
+                      };
+                      return <DocumentSigningRadioField key={field.id} field={fieldWithMeta} />;
+                    })
+                    .with(FieldType.CHECKBOX, () => {
+                      const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
+                        ...field,
+                        fieldMeta: field.fieldMeta
+                          ? ZCheckboxFieldMeta.parse(field.fieldMeta)
+                          : null,
+                      };
+                      return <DocumentSigningCheckboxField key={field.id} field={fieldWithMeta} />;
+                    })
+                    .with(FieldType.DROPDOWN, () => {
+                      const fieldWithMeta: FieldWithSignatureAndFieldMeta = {
+                        ...field,
+                        fieldMeta: field.fieldMeta
+                          ? ZDropdownFieldMeta.parse(field.fieldMeta)
+                          : null,
+                      };
+                      return <DocumentSigningDropdownField key={field.id} field={fieldWithMeta} />;
+                    })
+                    .otherwise(() => null),
             )}
         </ElementVisible>
       </div>

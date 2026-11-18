@@ -132,9 +132,13 @@ export const insertFieldInPDFV1 = async (pdf: PDFDocument, field: FieldWithSigna
     });
   }
 
-  const font = await pdf.embedFont(
-    isSignatureField ? fontCaveat : fontNoto,
-    isSignatureField ? { features: { calt: false } } : undefined,
+  const fieldText = isSignatureField ? (field.signature?.typedSignature ?? '') : field.customText;
+  const font = await embedFieldFont(
+    pdf,
+    new Uint8Array(isSignatureField ? fontCaveat : fontNoto),
+    fieldText,
+    isSignatureField,
+    field.secondaryId,
   );
 
   if (field.type === FieldType.SIGNATURE || field.type === FieldType.FREE_SIGNATURE) {
@@ -519,9 +523,70 @@ export const insertFieldInPDFV1 = async (pdf: PDFDocument, field: FieldWithSigna
 
         ...(isDebugMode ? { borderWidth: 1, borderColor: rgb(0, 0, 1) } : {}),
       });
+
+      // setText marks the field dirty; addToPage does not clear that flag.
+      // Persist the chosen appearance so flatten/save cannot regenerate the
+      // name with the default Latin-only font.
+      textField.updateAppearances(font);
     });
 
   return pdf;
+};
+
+// V1 PDF fields do not inherit the browser's CSS font fallback. Select a font
+// that contains the complete value before measuring or embedding the text.
+const fallbackFontsByDocument = new WeakMap<PDFDocument, Map<string, PDFFont>>();
+
+const embedFieldFont = async (
+  pdf: PDFDocument,
+  preferredBytes: Uint8Array,
+  text: string,
+  handwriting: boolean,
+  fieldId: string,
+): Promise<PDFFont> => {
+  const codePoints = Array.from(text)
+    .filter((character) => !/\s/u.test(character))
+    .map((character) => character.codePointAt(0)!);
+  const supportsText = (bytes: Uint8Array) => {
+    const font = fontkit.create(bytes);
+    return codePoints.every((codePoint) => font.hasGlyphForCodePoint(codePoint));
+  };
+
+  if (supportsText(preferredBytes)) {
+    return pdf.embedFont(preferredBytes, handwriting ? { features: { calt: false } } : undefined);
+  }
+
+  for (const filename of [
+    'noto-sans-chinese.ttf',
+    'noto-sans-japanese.ttf',
+    'noto-sans-korean.ttf',
+  ]) {
+    const response = await fetch(`${NEXT_PRIVATE_INTERNAL_WEBAPP_URL()}/fonts/${filename}`);
+    if (!response.ok) {
+      throw new Error(`Unable to load PDF fallback font: ${filename}`);
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (supportsText(bytes)) {
+      let fonts = fallbackFontsByDocument.get(pdf);
+      if (!fonts) {
+        fonts = new Map();
+        fallbackFontsByDocument.set(pdf, fonts);
+      }
+      const existingFont = fonts.get(filename);
+      if (existingFont) {
+        return existingFont;
+      }
+      // The bundled CJK fonts lose some outlines when subset by fontkit.
+      // Embed the complete font once per PDF, shared by all matching fields.
+      const font = await pdf.embedFont(bytes);
+      fonts.set(filename, font);
+      return font;
+    }
+  }
+
+  // Do not silently seal a contract with missing name glyphs. Do not include
+  // the submitted text in errors or job logs.
+  throw new Error(`PDF field ${fieldId} contains characters unsupported by the available fonts`);
 };
 
 const adjustPositionForRotation = (

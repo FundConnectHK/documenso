@@ -30,6 +30,7 @@ import type { ApiRequestMetadata } from '../../universal/extract-request-metadat
 import { isDocumentCompleted } from '../../utils/document';
 import { createDocumentAuditLogData } from '../../utils/document-audit-logs';
 import { type EnvelopeIdOptions, unsafeBuildEnvelopeIdQuery } from '../../utils/envelope';
+import { isPISigningMetadata } from '../../utils/pi-signing-metadata';
 import { isRecipientEmailValidForSending } from '../../utils/recipients';
 import { renderEmailWithI18N } from '../../utils/render-email-with-i18n';
 import { getEmailContext } from '../email/get-email-context';
@@ -233,6 +234,43 @@ const handleDocumentOwnerDelete = async ({
 }: HandleDocumentOwnerDeleteOptions) => {
   if (envelope.deletedAt) {
     return;
+  }
+
+  if (isPISigningMetadata(envelope.externalId, { type: FieldType.DATE })) {
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Envelope" WHERE id = ${envelope.id} FOR UPDATE`;
+      const current = await tx.envelope.findUniqueOrThrow({
+        where: { id: envelope.id },
+        include: { recipients: true },
+      });
+      if (current.deletedAt) return current;
+      const signers = current.recipients.filter(
+        (recipient) => recipient.role === RecipientRole.SIGNER,
+      );
+      if (
+        current.status === DocumentStatus.COMPLETED ||
+        (signers.length > 0 &&
+          signers.every((recipient) => recipient.signingStatus === SigningStatus.SIGNED))
+      ) {
+        throw new AppError(AppErrorCode.INVALID_REQUEST, {
+          message: 'A fully signed PI agreement cannot be cancelled',
+        });
+      }
+      await tx.documentAuditLog.create({
+        data: createDocumentAuditLogData({
+          envelopeId: current.id,
+          type: DOCUMENT_AUDIT_LOG_TYPE.DOCUMENT_DELETED,
+          metadata: requestMetadata,
+          data: { type: 'SOFT' },
+        }),
+      });
+      // Preserve the original PDF, partial signatures and audit trail. Every PI
+      // signing write rechecks this state under the same envelope lock.
+      return tx.envelope.update({
+        where: { id: current.id },
+        data: { status: DocumentStatus.REJECTED, deletedAt: new Date() },
+      });
+    });
   }
 
   const { branding, emailLanguage, senderEmail, replyToEmail } = await getEmailContext({

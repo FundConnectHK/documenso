@@ -2,6 +2,7 @@ import type { DocumentMeta, DocumentVisibility, TemplateType } from '@prisma/cli
 import {
   DocumentSource,
   EnvelopeType,
+  FieldType,
   FolderType,
   RecipientRole,
   SendStatus,
@@ -38,6 +39,7 @@ import { getFileServerSide } from '../../universal/upload/get-file.server';
 import { putPdfFileServerSide } from '../../universal/upload/put-file.server';
 import { extractDerivedDocumentMeta } from '../../utils/document';
 import { createDocumentAuthOptions, createRecipientAuthOptions } from '../../utils/document-auth';
+import { isPISigningMetadata } from '../../utils/pi-signing-metadata';
 import { buildTeamWhereQuery } from '../../utils/teams';
 import { incrementDocumentId, incrementTemplateId } from '../envelope/increment-id';
 import { getTeamSettings } from '../team/get-team-settings';
@@ -314,6 +316,19 @@ export const createEnvelope = async ({
   const envelopeOwnerId = delegatedOwner?.id ?? userId;
 
   const createdEnvelope = await prisma.$transaction(async (tx) => {
+    if (
+      type === EnvelopeType.DOCUMENT &&
+      isPISigningMetadata(externalId, { type: FieldType.DATE })
+    ) {
+      const key = `pi-create:${teamId}:${externalId}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text`;
+      const existing = await tx.envelope.findFirst({ where: { teamId, type, externalId } });
+      if (existing) {
+        throw new AppError(AppErrorCode.INVALID_REQUEST, {
+          message: 'PI signing revision already exists; reconcile the original document',
+        });
+      }
+    }
     const envelope = await tx.envelope.create({
       data: {
         id: prefixedId('envelope'),
